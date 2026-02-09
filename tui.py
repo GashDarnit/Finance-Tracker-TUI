@@ -1,0 +1,148 @@
+from textual.app import App, ComposeResult
+from textual.containers import Horizontal, HorizontalScroll, Vertical, VerticalScroll
+from textual.screen import Screen
+from textual.widgets import Footer, Header, ListView, ListItem, Static
+
+from Utils.LedgerStore import LedgerStore
+from Utils.LeftPanes import HeaderBox, OptionsList, BalanceBox
+from Utils.CustomWidgets import ExpenseRow
+
+
+finance_ledger = LedgerStore()
+
+
+class RightPanel(VerticalScroll):
+    DEFAULT_CSS = """
+    ListView, ListItem, Static {
+        background: transparent;
+    }
+
+    RightPanel {
+        width: 70%;
+        background: transparent;
+        border: round #AFAFD7;
+        margin: 0 0;
+        padding-left: 1;
+    }
+
+    ListItem {
+        height: auto;
+        margin-bottom: 1;
+    }
+
+    ExpenseRow {
+        width: 100%;
+        height: auto;
+        padding: 0 1;
+    }
+
+    ExpenseRow > Static:first-child {
+        width: 1fr;
+    }
+
+    ExpenseRow > Static:last-child {
+        width: auto;
+        text-align: right;
+        color: yellow;
+        padding-right: 2;
+    }
+
+    #right-content {
+        width: 100%;
+        text-align: center;
+        text-style: bold;
+        color: #AFAFD7;
+        margin-bottom: 1;
+    }
+    """
+
+    def compose(self) -> ComposeResult:
+        # This Static will show the dynamic content
+        yield Static("Right Panel - Dynamic Content Here", id="right-content")
+
+        # Scrollable list of items
+        self.list_view = ListView()
+        yield self.list_view
+
+    def update_content(self, title, items):
+        """Replace right panel content dynamically."""
+        # Update the top Static
+        right_content = self.query_one("#right-content", Static)
+        right_content.update(f"{title}")
+
+        # Clear previous list items
+        self.list_view.clear()
+
+        # Add new items
+        if title == 'Current Expenses':
+            for name, amount in items.items(): 
+                self.list_view.append( ListItem(ExpenseRow(name, amount)) )
+        else:
+            for item in items: self.list_view.append(ListItem(Static(item)))
+
+
+
+class FinanceTracker(Screen):
+    def compose(self) -> ComposeResult:
+        with Horizontal():
+            with Vertical():
+                self.options_list = OptionsList()
+                self.balance = BalanceBox()
+
+                yield HeaderBox()
+                yield self.options_list
+                yield self.balance
+
+            # Right column
+            self.right_panel = RightPanel()
+            yield self.right_panel
+    
+    def on_mount(self) -> None:
+        self.options_list.index = 0
+
+        self.query_one("#balance-value", Static).update(f"RM {finance_ledger.get_current_balance():.2f}")
+
+        self.options_list.focus()
+        selected_item = self.options_list.children[0]
+        option_text = selected_item.children[0].render()
+        right_content = self.right_panel.query_one("#right-content", Static)
+        right_content.update(f"{option_text}")
+
+    async def on_list_view_highlighted(self, event: ListView.Highlighted):
+        """Update right panel dynamically only when the left options are highlighted."""
+        # Only respond if the event is from the left panel
+        if event.list_view is not self.options_list:
+            return
+
+        list_item = event.item
+
+        # Safe access: Static inside ListItem
+        static_widgets = list_item.query(Static)
+        if not static_widgets:
+            return
+
+        option_text = static_widgets[0].render()
+
+        if option_text == 'Current Expenses':
+            items = finance_ledger.get_current_expenses()
+        elif option_text == 'Expenses History':
+            items = finance_ledger.get_expenses_history()
+        else:
+            items = []
+
+        self.right_panel.update_content(option_text, items)
+
+
+
+
+
+class FinanceTrackerApp(App):
+    def on_ready(self) -> None:
+        self.push_screen(FinanceTracker())
+
+
+if __name__ == "__main__":
+    FinanceTrackerApp().run()
+
+    # app = StopwatchApp()
+    # app.run()
