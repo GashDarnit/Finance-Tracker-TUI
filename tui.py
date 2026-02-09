@@ -101,6 +101,43 @@ class RightPanel(Vertical):
 
 
 class FinanceTracker(Screen):
+    # Vim-like keybinds
+    BINDINGS = [
+        ("h", "focus_left", "Focus left panel"),
+        ("l", "focus_right", "Focus right panel"),
+        ("j", "move_down", "Move selection down"),
+        ("k", "move_up", "Move selection up"),
+    ]
+
+    def action_focus_left(self):
+        """Move focus to left options list."""
+        self.options_list.focus()
+
+    def action_focus_right(self):
+        """Move focus to right panel list, if there are items."""
+        if self.right_panel.list_view.children:
+            self.right_panel.list_view.index = 0
+            self.right_panel.list_view.focus()
+
+    def action_move_down(self):
+        focused = self.focused
+        if isinstance(focused, ListView) and focused.children:
+
+            if focused.index is None:
+                focused.index = 0
+            else:
+                focused.index = min(focused.index + 1, len(focused.children) - 1)
+
+
+    def action_move_up(self):
+        focused = self.focused
+        if isinstance(focused, ListView) and focused.children:
+            if focused.index is None:
+                focused.index = 0
+            else:
+                focused.index = max(focused.index - 1, 0)
+
+
     def compose(self) -> ComposeResult:
         with Horizontal():
             with Vertical():
@@ -155,12 +192,20 @@ class FinanceTracker(Screen):
 
         self.right_panel.update_content(option_text, items)
 
+
     async def on_list_view_selected(self, event: ListView.Selected):
         """Called when an item is 'activated' (Enter pressed)."""
         if event.list_view is not self.options_list: return
 
+        list_item = event.item
+
+        # Safe access: Static inside ListItem
+        static_widgets = list_item.query(Static)
+        if not static_widgets: return
+        
+        option_text = static_widgets[0].render()
         # Focus on the first item in the right panel
-        if self.right_panel.list_view.children:
+        if self.right_panel.list_view.children and option_text != 'Dashboard':
             self.right_panel.list_view.index = 0
             self.right_panel.list_view.focus()
 
