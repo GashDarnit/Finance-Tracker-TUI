@@ -14,11 +14,18 @@ class LedgerStore:
         self.current_savings = self.load_current_savings()
 
     def load_current_expenses(self) -> Dict:
-        data = {}
+        expenses = {}
         with open(self.current_month_json) as file:
             data = json.load(file)
+
+            for expense, instances in data.items():
+                cur_sum = 0
+                for entry in instances:
+                    cur_sum += entry['value']
+
+                expenses[expense] = cur_sum
         
-        return data
+        return expenses
     
     def load_current_balance(self) -> float:
         try:
@@ -32,7 +39,7 @@ class LedgerStore:
     
     def load_current_savings(self) -> float:
         try:
-            with open(self.current_balance_json) as file:
+            with open(self.current_savings_json) as file:
                 savings = json.load(file)['Savings']
         except Exception as e:
             print(f"Failed to load Savings: {e}")

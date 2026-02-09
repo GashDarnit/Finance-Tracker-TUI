@@ -91,22 +91,28 @@ class RightPanel(Vertical):
 
         # Add new items
         if title == 'Current Expenses':
-            # self.instructions.display = True
+            self.instructions.display = True
             for name, amount in items.items(): 
                 self.list_view.append( ListItem(ExpenseRow(name, amount)) )
         else:
-            # self.instructions.display = False
+            self.instructions.display = False
             for item in items: self.list_view.append(ListItem(Static(item)))
 
 
 
 class FinanceTracker(Screen):
-    # Vim-like keybinds
     BINDINGS = [
+        # Vim-style keybinds
         ("h", "focus_left", "Focus left panel"),
         ("l", "focus_right", "Focus right panel"),
         ("j", "move_down", "Move selection down"),
         ("k", "move_up", "Move selection up"),
+
+        # Arrow keys
+        ("left", "focus_left", "Focus left panel"),
+        ("right", "focus_right", "Focus right panel"),
+        ("down", "move_down", "Move selection down"),
+        ("up", "move_up", "Move selection up"),
     ]
 
     def action_focus_left(self):
