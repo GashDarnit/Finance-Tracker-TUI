@@ -1,6 +1,6 @@
 from typing import Container
 from textual.app import ComposeResult
-from textual.containers import Vertical, VerticalScroll
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widgets import ListItem, ListView, Static
 
 class HeaderBox(VerticalScroll):
@@ -40,11 +40,11 @@ class OptionsList(ListView):
         self.border_title_align = "center"
 
 
-class BalanceBox(Vertical):
+class BalanceBox(Horizontal):
     DEFAULT_CSS = """
     BalanceBox {
-        width: 100%;
-        height: 10%;
+        width: 50%;
+        height: 100%;
         border: round #AFAFD7;
         margin: 0 0;
         align: center middle;
@@ -60,7 +60,32 @@ class BalanceBox(Vertical):
     def __init__(self):
         super().__init__()
         self.border_title = "Balance"
-        self.border_title_align = "center"
+        self.border_title_align = "bottom"
 
     def compose(self) -> ComposeResult:
         yield Static("RM 0.00", id="balance-value")
+
+class SavingsBox(Horizontal):
+    DEFAULT_CSS = """
+    SavingsBox {
+        width: 50%;
+        height: 100%;
+        border: round #AFAFD7;
+        margin: 0 0;
+        align: center middle;
+    }
+
+    #savings-value {
+        width: 100%;
+        text-align: center;
+        text-style: bold;
+    }
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.border_title = "Savings"
+        self.border_title_align = "bottom"
+
+    def compose(self) -> ComposeResult:
+        yield Static("RM 0.00", id="savings-value")

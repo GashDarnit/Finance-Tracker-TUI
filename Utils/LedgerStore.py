@@ -8,8 +8,10 @@ class LedgerStore:
     def __init__(self) -> None:
         self.current_month_json = "current_expenses.json"
         self.current_balance_json = "current_balance.json"
+        self.current_savings_json = "current_savings.json"
         self.current_expenses = self.load_current_expenses() if not self.is_json_file_empty() else {}
         self.current_balance = self.load_current_balance()
+        self.current_savings = self.load_current_savings()
 
     def load_current_expenses(self) -> Dict:
         data = {}
@@ -27,6 +29,16 @@ class LedgerStore:
             balance = 0.0
 
         return balance
+    
+    def load_current_savings(self) -> float:
+        try:
+            with open(self.current_balance_json) as file:
+                savings = json.load(file)['Savings']
+        except Exception as e:
+            print(f"Failed to load Savings: {e}")
+            savings = 0.0
+
+        return savings
 
     def save_current_expenses(self) -> bool:
         try:
@@ -45,10 +57,13 @@ class LedgerStore:
     def get_current_balance(self):
         return self.current_balance
     
+    def get_current_savings(self):
+        return self.current_savings
+    
     def get_expenses_history(self) -> List:
         entries = []
         for entry in glob.glob("History/*"): 
-            entries.append(entry.split('/')[-1].split('.')[0]) # This looks so chaotic lmao
+            entries.append(entry.split('/')[-1].split('.')[0].replace('_', ' ')) # This looks so chaotic lmao
         
         return entries
 

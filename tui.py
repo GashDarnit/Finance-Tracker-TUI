@@ -4,14 +4,13 @@ from textual.screen import Screen
 from textual.widgets import Footer, Header, ListView, ListItem, Static
 
 from Utils.LedgerStore import LedgerStore
-from Utils.LeftPanes import HeaderBox, OptionsList, BalanceBox
+from Utils.LeftPanes import HeaderBox, OptionsList, BalanceBox, SavingsBox
 from Utils.CustomWidgets import ExpenseRow
 
 
 finance_ledger = LedgerStore()
 
-
-class RightPanel(VerticalScroll):
+class RightPanel(Vertical):
     DEFAULT_CSS = """
     ListView, ListItem, Static {
         background: transparent;
@@ -19,6 +18,7 @@ class RightPanel(VerticalScroll):
 
     RightPanel {
         width: 70%;
+        height: 100%;
         background: transparent;
         border: round #AFAFD7;
         margin: 0 0;
@@ -52,17 +52,33 @@ class RightPanel(VerticalScroll):
         text-align: center;
         text-style: bold;
         color: #AFAFD7;
+        border-bottom: solid #AFAFD7;
         margin-bottom: 1;
     }
+
+    #right-scroll {
+        height: 1fr;
+    }
+
+    #instructions-footer {
+        text-align: left;
+        color: #AFAFD7;
+        background: black;
+        border-top: solid #AFAFD7;
+        padding: 1 1;
+    }
+
     """
 
     def compose(self) -> ComposeResult:
-        # This Static will show the dynamic content
-        yield Static("Right Panel - Dynamic Content Here", id="right-content")
+        with VerticalScroll(id="right-scroll"):
+            yield Static("Right Panel - Dynamic Content Here", id="right-content")
 
-        # Scrollable list of items
-        self.list_view = ListView()
-        yield self.list_view
+            self.list_view = ListView()
+            yield self.list_view
+
+        self.instructions = Static("[N] New Expense\t\t[Enter] Select Expense", id="instructions-footer", markup=False)
+        yield self.instructions
 
     def update_content(self, title, items):
         """Replace right panel content dynamically."""
@@ -75,9 +91,11 @@ class RightPanel(VerticalScroll):
 
         # Add new items
         if title == 'Current Expenses':
+            # self.instructions.display = True
             for name, amount in items.items(): 
                 self.list_view.append( ListItem(ExpenseRow(name, amount)) )
         else:
+            # self.instructions.display = False
             for item in items: self.list_view.append(ListItem(Static(item)))
 
 
@@ -88,10 +106,14 @@ class FinanceTracker(Screen):
             with Vertical():
                 self.options_list = OptionsList()
                 self.balance = BalanceBox()
+                self.savings = SavingsBox()
 
                 yield HeaderBox()
                 yield self.options_list
-                yield self.balance
+
+                with Horizontal():
+                    yield self.balance
+                    yield self.savings
 
             # Right column
             self.right_panel = RightPanel()
@@ -101,6 +123,7 @@ class FinanceTracker(Screen):
         self.options_list.index = 0
 
         self.query_one("#balance-value", Static).update(f"RM {finance_ledger.get_current_balance():.2f}")
+        self.query_one("#savings-value", Static).update(f"RM {finance_ledger.get_current_savings():.2f}")
 
         self.options_list.focus()
         selected_item = self.options_list.children[0]
@@ -133,9 +156,6 @@ class FinanceTracker(Screen):
         self.right_panel.update_content(option_text, items)
 
 
-
-
-
 class FinanceTrackerApp(App):
     def on_ready(self) -> None:
         self.push_screen(FinanceTracker())
@@ -143,6 +163,3 @@ class FinanceTrackerApp(App):
 
 if __name__ == "__main__":
     FinanceTrackerApp().run()
-
-    # app = StopwatchApp()
-    # app.run()
