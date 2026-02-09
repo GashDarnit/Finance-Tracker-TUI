@@ -25,7 +25,7 @@ class HeaderBox(VerticalScroll):
 class OptionsList(ListView):
     DEFAULT_CSS = """
     OptionsList {
-        height: 80%;
+        height: 79%;
         background: black 100%;
         border: solid;
         border: round #AFAFD7;

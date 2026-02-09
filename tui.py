@@ -155,6 +155,16 @@ class FinanceTracker(Screen):
 
         self.right_panel.update_content(option_text, items)
 
+    async def on_list_view_selected(self, event: ListView.Selected):
+        """Called when an item is 'activated' (Enter pressed)."""
+        if event.list_view is not self.options_list: return
+
+        # Focus on the first item in the right panel
+        if self.right_panel.list_view.children:
+            self.right_panel.list_view.index = 0
+            self.right_panel.list_view.focus()
+
+
 
 class FinanceTrackerApp(App):
     def on_ready(self) -> None:
