@@ -6,6 +6,7 @@ from textual.widgets import Footer, Header, ListView, ListItem, Static
 from Utils.LedgerStore import LedgerStore
 from Utils.LeftPanes import HeaderBox, OptionsList, BalanceBox, SavingsBox
 from Utils.CustomWidgets import ExpenseRow
+from Utils.NewExpenseModal import NewExpenseModal
 
 
 finance_ledger = LedgerStore()
@@ -19,7 +20,7 @@ class RightPanel(Vertical):
     RightPanel {
         width: 70%;
         height: 100%;
-        background: transparent;
+        background: #080808;
         border: round #AFAFD7;
         margin: 0 0;
         padding-left: 1;
@@ -43,7 +44,7 @@ class RightPanel(Vertical):
     ExpenseRow > Static:last-child {
         width: auto;
         text-align: right;
-        color: yellow;
+        color: #AFAFD7;
         padding-right: 2;
     }
 
@@ -71,13 +72,17 @@ class RightPanel(Vertical):
     """
 
     def compose(self) -> ComposeResult:
+        self.current_title = None
+
         with VerticalScroll(id="right-scroll"):
             yield Static("Right Panel - Dynamic Content Here", id="right-content")
 
             self.list_view = ListView()
             yield self.list_view
 
+        self.total_expense = Static("Total: ", id="expense-total")
         self.instructions = Static("[N] New Expense\t\t[Enter] Select Expense", id="instructions-footer", markup=False)
+        yield self.total_expense
         yield self.instructions
 
     def update_content(self, title, items):
@@ -85,6 +90,7 @@ class RightPanel(Vertical):
         # Update the top Static
         right_content = self.query_one("#right-content", Static)
         right_content.update(f"{title}")
+        self.current_title = title
 
         # Clear previous list items
         self.list_view.clear()
@@ -92,8 +98,11 @@ class RightPanel(Vertical):
         # Add new items
         if title == 'Current Expenses':
             self.instructions.display = True
-            for name, amount in items.items(): 
-                self.list_view.append( ListItem(ExpenseRow(name, amount)) )
+            for name, content in items.items(): 
+                self.list_view.append( ListItem(ExpenseRow(name, content['value'])) )
+
+            self.query_one("#expense-total", Static).update(f"Total:\tRM {finance_ledger.get_total_expenses():.2f}")
+
         else:
             self.instructions.display = False
             for item in items: self.list_view.append(ListItem(Static(item)))
@@ -113,6 +122,8 @@ class FinanceTracker(Screen):
         ("right", "focus_right", "Focus right panel"),
         ("down", "move_down", "Move selection down"),
         ("up", "move_up", "Move selection up"),
+
+        ("n", "new_expense", "New Expense"),
     ]
 
     def action_focus_left(self):
@@ -134,7 +145,6 @@ class FinanceTracker(Screen):
             else:
                 focused.index = min(focused.index + 1, len(focused.children) - 1)
 
-
     def action_move_up(self):
         focused = self.focused
         if isinstance(focused, ListView) and focused.children:
@@ -143,6 +153,27 @@ class FinanceTracker(Screen):
             else:
                 focused.index = max(focused.index - 1, 0)
 
+    def action_new_expense(self):
+        focused = self.focused
+
+        # Must be focused on the right panel ListView
+        if focused is not self.right_panel.list_view:
+            return
+
+        # Must be showing Current Expenses
+        if self.right_panel.current_title != "Current Expenses": 
+            return
+
+        self.open_new_expense_dialog()
+
+    def open_new_expense_dialog(self):
+        self.app.push_screen(NewExpenseModal(), self.on_new_expense_submitted)
+
+    def on_new_expense_submitted(self, result):
+        if result is None: return
+        
+        finance_ledger.add_new_expense(result) # Add new entry to ledger
+        self.right_panel.update_content('Current Expenses', finance_ledger.get_current_expenses()) # Update content
 
     def compose(self) -> ComposeResult:
         with Horizontal():

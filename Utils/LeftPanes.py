@@ -1,6 +1,5 @@
-from typing import Container
 from textual.app import ComposeResult
-from textual.containers import Horizontal, Vertical, VerticalScroll
+from textual.containers import Horizontal, VerticalScroll
 from textual.widgets import ListItem, ListView, Static
 
 class HeaderBox(VerticalScroll):
@@ -8,6 +7,7 @@ class HeaderBox(VerticalScroll):
     HeaderBox {
         width: 100%;
         height: 10%;
+        background: #080808;
         border: solid;
         border: round #AFAFD7;
         margin: 0 0;
@@ -26,7 +26,7 @@ class OptionsList(ListView):
     DEFAULT_CSS = """
     OptionsList {
         height: 79%;
-        background: black 100%;
+        background: #080808 100%;
         border: solid;
         border: round #AFAFD7;
         margin: 0 0;
@@ -45,6 +45,7 @@ class BalanceBox(Horizontal):
     BalanceBox {
         width: 50%;
         height: 100%;
+        background: #080808;
         border: round #AFAFD7;
         margin: 0 0;
         align: center middle;
@@ -70,6 +71,7 @@ class SavingsBox(Horizontal):
     SavingsBox {
         width: 50%;
         height: 100%;
+        background: #080808;
         border: round #AFAFD7;
         margin: 0 0;
         align: center middle;

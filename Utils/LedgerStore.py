@@ -19,11 +19,12 @@ class LedgerStore:
             data = json.load(file)
 
             for expense, instances in data.items():
+                expenses[expense] = {'entries': instances, 'value': 0.0}
                 cur_sum = 0
                 for entry in instances:
                     cur_sum += entry['value']
 
-                expenses[expense] = cur_sum
+                expenses[expense]['value'] = cur_sum
         
         return expenses
     
@@ -49,14 +50,21 @@ class LedgerStore:
 
     def save_current_expenses(self) -> bool:
         try:
+            # Create a new dict in the original format
+            data_to_save = {
+                service: info["entries"] if isinstance(info, dict) else info
+                for service, info in self.current_expenses.items()
+            }
+
             with open(self.current_month_json, "w") as file:
-                json.dump(self.current_expenses, file, indent=4)
+                json.dump(data_to_save, file, indent=4)
 
         except Exception as e:
             print(f"Failed to save file: {e}")
             return False
 
         return True
+
 
     def get_current_expenses(self):
         return self.current_expenses
@@ -73,6 +81,42 @@ class LedgerStore:
             entries.append(entry.split('/')[-1].split('.')[0].replace('_', ' ')) # This looks so chaotic lmao
         
         return entries
+    
+    def get_total_expenses(self) -> float:
+        total = 0
+        for _, content in self.current_expenses.items(): total += content['value']
+
+        return total
+
+    def add_new_expense(self, expense) -> None:
+        '''
+        "Name": name,
+        "Payment Date": date,
+        "Amount": float(amount),
+        '''
+        name, date, amount = [item[1] for item in expense.items()]
+        new_entry = {
+            'payment_date': date,
+            'value': amount
+        }
+        if name in self.current_expenses:
+            self.current_expenses[name]['entries'].append(new_entry)
+
+            cur_sum = 0
+            for entry in self.current_expenses[name]['entries']:
+                cur_sum += entry['value']
+
+            self.current_expenses[name]['value'] = cur_sum
+
+        else:
+            self.current_expenses[name] = {}
+            self.current_expenses[name]['entries'] = [new_entry]
+            self.current_expenses[name]['value'] = amount
+
+        self.save_current_expenses()
+    
+    def remove_expense(self, expense) -> None:
+        pass
 
     def update_current_expenses(self, expense, cost):
         self.current_expenses[expense] = cost
