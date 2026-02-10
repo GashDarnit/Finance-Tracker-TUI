@@ -6,7 +6,7 @@ from textual.widgets import Footer, Header, ListView, ListItem, Static
 from Utils.LedgerStore import LedgerStore
 from Utils.LeftPanes import HeaderBox, OptionsList, BalanceBox, SavingsBox
 from Utils.CustomWidgets import ExpenseRow
-from Utils.NewExpenseModal import NewExpenseModal
+from Utils.Modals import NewExpenseModal, ExpenseListModal
 
 
 finance_ledger = LedgerStore()
@@ -232,19 +232,38 @@ class FinanceTracker(Screen):
 
     async def on_list_view_selected(self, event: ListView.Selected):
         """Called when an item is 'activated' (Enter pressed)."""
-        if event.list_view is not self.options_list: return
 
-        list_item = event.item
+        # --- LEFT PANEL selection logic (keep what you already have) ---
+        if event.list_view is self.options_list:
+            list_item = event.item
+            static_widgets = list_item.query(Static)
+            if not static_widgets: return
+            option_text = static_widgets[0].render()
 
-        # Safe access: Static inside ListItem
-        static_widgets = list_item.query(Static)
-        if not static_widgets: return
-        
-        option_text = static_widgets[0].render()
-        # Focus on the first item in the right panel
-        if self.right_panel.list_view.children and option_text != 'Dashboard':
-            self.right_panel.list_view.index = 0
-            self.right_panel.list_view.focus()
+            if self.right_panel.list_view.children and option_text != 'Dashboard':
+                # Focus on the first item in the right panel
+                self.right_panel.list_view.index = 0
+                self.right_panel.list_view.focus()
+            return  # done
+
+        # --- RIGHT PANEL selection logic ---
+        if event.list_view is self.right_panel.list_view:
+            # Only show modal if we're in 'Current Expenses' mode
+            if self.right_panel.current_title != "Current Expenses":
+                return
+
+            # Get selected item
+            selected_index = self.right_panel.list_view.index
+            if selected_index is None:
+                return
+
+            selected_item = self.right_panel.list_view.children[selected_index]
+            static_widgets = selected_item.query(Static)
+            current_expense = static_widgets[0].render()
+            expense_entries = finance_ledger.get_current_expenses()[current_expense]['entries']
+
+            # Push the modal
+            self.app.push_screen( ExpenseListModal(title=current_expense, expenses=expense_entries) )
 
 
 
