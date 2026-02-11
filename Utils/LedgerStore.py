@@ -113,6 +113,19 @@ class LedgerStore:
             self.current_expenses[name]['entries'] = [new_entry]
             self.current_expenses[name]['value'] = amount
 
+
+        print(f"[Ledger] New {name} amount: {self.current_expenses[name]['value']}")
+
+        self.save_current_expenses()
+
+    def add_new_expense_entry(self, title, new_entry) -> None:
+        '''
+        "Payment Date": date,
+        "Amount": float(amount),
+        '''
+        self.current_expenses[title]['entries'].append(new_entry)
+        self.current_expenses[title]['value'] += new_entry['value']
+
         self.save_current_expenses()
     
     def remove_expense(self, expense) -> None:

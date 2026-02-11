@@ -175,6 +175,7 @@ class FinanceTracker(Screen):
         finance_ledger.add_new_expense(result) # Add new entry to ledger
         self.right_panel.update_content('Current Expenses', finance_ledger.get_current_expenses()) # Update content
 
+
     def compose(self) -> ComposeResult:
         with Horizontal():
             with Vertical():
@@ -233,7 +234,7 @@ class FinanceTracker(Screen):
     async def on_list_view_selected(self, event: ListView.Selected):
         """Called when an item is 'activated' (Enter pressed)."""
 
-        # --- LEFT PANEL selection logic (keep what you already have) ---
+        # =============== LEFT PANEL selection logic ===============
         if event.list_view is self.options_list:
             list_item = event.item
             static_widgets = list_item.query(Static)
@@ -246,7 +247,7 @@ class FinanceTracker(Screen):
                 self.right_panel.list_view.focus()
             return  # done
 
-        # --- RIGHT PANEL selection logic ---
+        # =============== RIGHT PANEL selection logic ===============
         if event.list_view is self.right_panel.list_view:
             # Only show modal if we're in 'Current Expenses' mode
             if self.right_panel.current_title != "Current Expenses":
@@ -263,8 +264,17 @@ class FinanceTracker(Screen):
             expense_entries = finance_ledger.get_current_expenses()[current_expense]['entries']
 
             # Push the modal
-            self.app.push_screen( ExpenseListModal(title=current_expense, expenses=expense_entries) )
+            self.app.push_screen( 
+                ExpenseListModal(title=current_expense, expenses=expense_entries, ledger=finance_ledger), 
+                self.on_new_expense_entry_submitted
+            )
 
+    def on_new_expense_entry_submitted(self, _):
+        # Select the first option in the list
+        self.right_panel.list_view.index = 0
+        self.right_panel.list_view.focus()
+        
+        self.right_panel.update_content('Current Expenses', finance_ledger.get_current_expenses()) # Update content
 
 
 class FinanceTrackerApp(App):

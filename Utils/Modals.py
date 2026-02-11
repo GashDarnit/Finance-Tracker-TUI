@@ -4,6 +4,7 @@ from textual.containers import Container, Horizontal, Vertical, VerticalScroll
 from textual import events
 
 from Utils.CustomWidgets import ExpenseRow
+from Utils.LedgerStore import LedgerStore
 
 class NewExpenseModal(ModalScreen):
     DEFAULT_CSS = """
@@ -49,7 +50,7 @@ class NewExpenseModal(ModalScreen):
                 yield Label("New Expense", id="dialog-title")
 
                 self.expense_name = Input(placeholder="Expense name", id="expense-name")
-                self.date = Input(placeholder="Date (YYYY-MM-DD)", id="expense-date")
+                self.date = Input(placeholder="Date (DD-MM-YYYY)", id="expense-date")
                 self.amount = Input(placeholder="Amount", type="number", id="expense-amount")
 
 
@@ -149,11 +150,12 @@ class ExpenseListModal(ModalScreen):
         ("x", "delete_expense", "Delete Selected"),
     ]
 
-    def __init__(self, title: str, expenses: list):
+    def __init__(self, title: str, expenses: list, ledger: LedgerStore):
         super().__init__()
         self.title = title
         self.expenses = expenses
         self.list_view = None
+        self.ledger = ledger
 
     def compose(self):
         with Container():
@@ -169,17 +171,36 @@ class ExpenseListModal(ModalScreen):
 
     async def on_mount(self):
         """Populate ListView after it's mounted."""
+        self.list_view.clear()
+
         # Append items now, using `await` because append is async
         for entry in self.expenses:
             name, amount = [i[1] for i in entry.items()]
             await self.list_view.append( ListItem(ExpenseRow( name, amount ) ))
 
-
-        # for name, amount in self.expenses.items():
-        #     await self.list_view.append( ListItem(ExpenseRow( name, amount ) ))
-
         # Focus first item
         if self.list_view.children:
             self.list_view.index = 0
             self.list_view.focus()
+
+    def action_new_expense(self):
+        """Open a new expense dialog from within this modal."""
+        self.app.push_screen(NewExpenseModal(), self.on_new_expense_submitted)
+
+    def on_new_expense_submitted(self, result):
+        """Callback when NewExpenseModal is submitted."""
+        if result is None:
+            return
+
+        new_entry = {
+            'payment_date': result["Payment Date"],
+            'value': result["Amount"]
+        }
+
+        # Update ledger to add in new entry
+        self.ledger.add_new_expense_entry(self.title, new_entry)
+
+        # Append to ListView
+        self.list_view.append(ListItem(ExpenseRow(new_entry['payment_date'], new_entry['value'])))
+
 
