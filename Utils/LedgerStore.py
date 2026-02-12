@@ -47,6 +47,28 @@ class LedgerStore:
             savings = 0.0
 
         return savings
+    
+    def save_current_balance(self) -> bool:
+        try:
+            with open(self.current_balance_json, "w") as file:
+                json.dump({"Balance": self.current_balance}, file, indent=4)
+
+        except Exception as e:
+            print(f"Failed to save balance: {e}")
+            return False
+        
+        return True
+    
+    def save_current_savings(self) -> bool:
+        try:
+            with open(self.current_savings_json, "w") as file:
+                json.dump({"Savings": self.current_savings}, file, indent=4)
+
+        except Exception as e:
+            print(f"Failed to save savings: {e}")
+            return False
+        
+        return True
 
     def save_current_expenses(self) -> bool:
         try:
@@ -117,6 +139,7 @@ class LedgerStore:
         print(f"[Ledger] New {name} amount: {self.current_expenses[name]['value']}")
 
         self.save_current_expenses()
+        self.update_current_balance(amount)
 
     def add_new_expense_entry(self, title, new_entry) -> None:
         '''
@@ -127,6 +150,7 @@ class LedgerStore:
         self.current_expenses[title]['value'] += new_entry['value']
 
         self.save_current_expenses()
+        self.update_current_balance(new_entry['value'])
     
     def remove_expense(self, expense) -> None:
         pass
@@ -145,6 +169,20 @@ class LedgerStore:
             print(f"Failed to load {filename}: {e}")
 
         return data
+
+    def update_current_balance(self, expense_cost) -> float:
+        # Should work for both positive and negative values
+        self.current_balance -= expense_cost
+        self.save_current_balance()
+
+        return self.current_balance
+
+    def update_current_savings(self, savings_change) -> float:
+        # Should work for both positive and negative values
+        self.current_savings -= savings_change
+        self.save_current_savings()
+
+        return self.current_savings
 
     def is_json_file_empty(self):
         return os.path.getsize(self.current_month_json) == 0

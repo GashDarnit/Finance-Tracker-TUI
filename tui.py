@@ -175,6 +175,10 @@ class FinanceTracker(Screen):
         finance_ledger.add_new_expense(result) # Add new entry to ledger
         self.right_panel.update_content('Current Expenses', finance_ledger.get_current_expenses()) # Update content
 
+        # Update Balance and Savings display
+        self.balance.update_balance(finance_ledger.get_current_balance())
+        self.savings.update_savings(finance_ledger.get_current_savings())
+
 
     def compose(self) -> ComposeResult:
         with Horizontal():
@@ -275,6 +279,10 @@ class FinanceTracker(Screen):
         self.right_panel.list_view.focus()
         
         self.right_panel.update_content('Current Expenses', finance_ledger.get_current_expenses()) # Update content
+
+        # Update Balance and Savings display
+        self.balance.update_balance(finance_ledger.get_current_balance())
+        self.savings.update_savings(finance_ledger.get_current_savings())
 
 
 class FinanceTrackerApp(App):

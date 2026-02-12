@@ -66,6 +66,9 @@ class BalanceBox(Horizontal):
     def compose(self) -> ComposeResult:
         yield Static("RM 0.00", id="balance-value")
 
+    def update_balance(self, amount: float) -> None:
+        self.query_one("#balance-value", Static).update(f"RM {amount:.2f}")
+
 class SavingsBox(Horizontal):
     DEFAULT_CSS = """
     SavingsBox {
@@ -91,3 +94,6 @@ class SavingsBox(Horizontal):
 
     def compose(self) -> ComposeResult:
         yield Static("RM 0.00", id="savings-value")
+
+    def update_savings(self, amount: float) -> None:
+        self.query_one("#savings-value", Static).update(f"RM {amount:.2f}")
