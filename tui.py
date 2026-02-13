@@ -6,7 +6,7 @@ from textual.widgets import Footer, Header, ListView, ListItem, Static
 from Utils.LedgerStore import LedgerStore
 from Utils.LeftPanes import HeaderBox, OptionsList, BalanceBox, SavingsBox
 from Utils.CustomWidgets import ExpenseRow
-from Utils.Modals import NewExpenseModal, ExpenseListModal
+from Utils.Modals import NewExpenseModal, ExpenseListModal, ConfirmDeleteModal
 
 
 finance_ledger = LedgerStore()
@@ -81,7 +81,7 @@ class RightPanel(Vertical):
             yield self.list_view
 
         self.total_expense = Static("Total: ", id="expense-total")
-        self.instructions = Static("[N] New Expense\t\t[Enter] Select Expense", id="instructions-footer", markup=False)
+        self.instructions = Static("[N] New Expense\t\t[X] Delete Expense\t\t[Enter] Select Expense", id="instructions-footer", markup=False)
         yield self.total_expense
         yield self.instructions
 
@@ -124,6 +124,8 @@ class FinanceTracker(Screen):
         ("up", "move_up", "Move selection up"),
 
         ("n", "new_expense", "New Expense"),
+        ("x", "delete_expense", "Delete Expense"),
+        ("q", "quit", "Quit"),
     ]
 
     def action_focus_left(self):
@@ -166,13 +168,50 @@ class FinanceTracker(Screen):
 
         self.open_new_expense_dialog()
 
+    def action_delete_expense(self):
+        focused = self.focused
+
+        if focused is not self.right_panel.list_view:
+            return
+
+        if self.right_panel.current_title != "Current Expenses":
+            return
+
+        selected_index = focused.index
+        if selected_index is None:
+            return
+
+        selected_item = focused.children[selected_index]
+        static_widgets = selected_item.query(Static)
+        if not static_widgets:
+            return
+
+        expense_name = static_widgets[0].render()
+
+        self.app.push_screen(
+            ConfirmDeleteModal(expense_name),
+            lambda confirmed: self.on_delete_expense_submitted(confirmed, expense_name)
+        )
+    
+
     def open_new_expense_dialog(self):
         self.app.push_screen(NewExpenseModal(), self.on_new_expense_submitted)
+
 
     def on_new_expense_submitted(self, result):
         if result is None: return
         
         finance_ledger.add_new_expense(result) # Add new entry to ledger
+        self.right_panel.update_content('Current Expenses', finance_ledger.get_current_expenses()) # Update content
+
+        # Update Balance and Savings display
+        self.balance.update_balance(finance_ledger.get_current_balance())
+        self.savings.update_savings(finance_ledger.get_current_savings())
+
+    def on_delete_expense_submitted(self, confirmed, expense_name):
+        if not confirmed: return
+        
+        finance_ledger.remove_expense(expense_name) # Add new entry to ledger
         self.right_panel.update_content('Current Expenses', finance_ledger.get_current_expenses()) # Update content
 
         # Update Balance and Savings display

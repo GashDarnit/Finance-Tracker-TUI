@@ -203,4 +203,26 @@ class ExpenseListModal(ModalScreen):
         # Append to ListView
         self.list_view.append(ListItem(ExpenseRow(new_entry['payment_date'], new_entry['value'])))
 
+class ConfirmDeleteModal(ModalScreen[bool]):
+    BINDINGS = [
+        ("y", "confirm", "Yes"),
+        ("enter", "confirm", "Yes"),
+        ("n", "dismiss", "No"),
+        ("escape", "dismiss", "Cancel"),
+    ]
+
+    def __init__(self, expense_name: str):
+        super().__init__()
+        self.expense_name = expense_name
+
+    def compose(self):
+        with Container():
+            with Vertical(id="dialog"):
+                yield Label("Confirm Deletion", id="dialog-title")
+                yield Static(
+                    f"Delete expense '{self.expense_name}'?\n\n[Y] Yes    [N] No"
+                )
+
+    def action_confirm(self):
+        self.dismiss(True)
 

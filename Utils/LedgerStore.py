@@ -153,7 +153,11 @@ class LedgerStore:
         self.update_current_balance(new_entry['value'])
     
     def remove_expense(self, expense) -> None:
-        pass
+        expense_total = self._get_entry_total(expense)
+        del self.current_expenses[expense]
+
+        self.save_current_expenses()
+        self.update_current_balance(-expense_total) # Negative since we want balance to go up
 
     def update_current_expenses(self, expense, cost):
         self.current_expenses[expense] = cost
@@ -186,3 +190,14 @@ class LedgerStore:
 
     def is_json_file_empty(self):
         return os.path.getsize(self.current_month_json) == 0
+    
+    def _get_entry_total(self, expense_name) -> float:
+        current_sum = 0
+
+        entries = self.current_expenses[expense_name]["entries"]
+
+        for entry in entries:
+            current_sum += entry["value"]
+
+        return current_sum
+
