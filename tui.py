@@ -69,6 +69,10 @@ class RightPanel(Vertical):
         padding: 1 1;
     }
 
+    #expense-total {
+        padding-top: 1;
+    }
+
     """
 
     def compose(self) -> ComposeResult:

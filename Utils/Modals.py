@@ -176,6 +176,26 @@ class ExpenseListModal(ModalScreen):
         """Open a new expense dialog from within this modal."""
         self.app.push_screen(NewExpenseModal(), self.on_new_expense_submitted)
 
+    def action_delete_expense(self):
+        """Triggered when user presses 'x'."""
+
+        if not self.list_view.children:
+            return
+
+        selected_index = self.list_view.index
+        entries = self.ledger.current_expenses[self.title]["entries"]
+
+        if selected_index is None or selected_index >= len(entries):
+            return
+
+        selected_entry = entries[selected_index]
+        display_name = f"{selected_entry['description']} worth {selected_entry['value']:.2f} from {selected_entry['payment_date']}"
+
+        self.app.push_screen(
+            ConfirmDeleteModal(display_name),
+            lambda confirmed: self.on_delete_confirmed(confirmed, selected_index)
+        )
+
     def on_new_expense_submitted(self, result):
         """Callback when NewExpenseModal is submitted."""
         if result is None:
@@ -189,6 +209,27 @@ class ExpenseListModal(ModalScreen):
 
         self.ledger.add_new_expense_entry(self.title, new_entry) # Add new entry to the ledger
         self.call_later(self.refresh_list) # Refresh the list view so that the content is date-sorted
+
+    def on_delete_confirmed(self, confirmed: bool, index: int):
+        if not confirmed:
+            return
+
+        entries = self.ledger.current_expenses[self.title]["entries"]
+
+        if 0 <= index < len(entries):
+            deleted_entry = entries.pop(index)
+
+            # Recalculate total safely
+            self.ledger.current_expenses[self.title]["value"] = sum(
+                e["value"] for e in entries
+            )
+
+            # Persist changes
+            self.ledger.save_current_expenses()
+            self.ledger.update_current_balance(-deleted_entry["value"])
+
+        # Refresh UI
+        self.call_later(self.refresh_list)
 
     async def refresh_list(self):
         self.list_view.clear()
@@ -204,6 +245,34 @@ class ExpenseListModal(ModalScreen):
             self.list_view.focus()
 
 class ConfirmDeleteModal(ModalScreen[bool]):
+    DEFAULT_CSS = """
+        ModalScreen {
+            background: transparent;
+        }
+
+        Container {
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            align: center middle;
+        }
+
+        #dialog {
+            width: 60%;
+            height: auto;
+            max-width: 70;
+            min-width: 40;
+            padding: 0 2;
+            border: round #AFAFD7;
+        }
+
+        #dialog-title {
+            text-style: bold;
+            margin-bottom: 1;
+            text-align: center;
+        }
+    """
+
     BINDINGS = [
         ("y", "confirm", "Yes"),
         ("enter", "confirm", "Yes"),
@@ -220,8 +289,9 @@ class ConfirmDeleteModal(ModalScreen[bool]):
             with Vertical(id="dialog"):
                 yield Label("Confirm Deletion", id="dialog-title")
                 yield Static(
-                    f"Delete expense '{self.expense_name}'?\n\n[Y] Yes    [N] No"
+                    f"Delete {self.expense_name}?\n\n"
                 )
+                yield Static("\[Enter] Yes\t\[Escape] No")
 
     def action_confirm(self):
         self.dismiss(True)
