@@ -145,7 +145,7 @@ class ExpenseListModal(ModalScreen):
     BINDINGS = [
         ("escape", "dismiss", "Cancel"),
         ("n", "new_expense", "New Expense"),
-        ("e", "edit_expense", "Edit Selected"),
+        ("Enter", "edit_expense", "Edit Selected"),
         ("x", "delete_expense", "Delete Selected"),
     ]
 
@@ -166,21 +166,11 @@ class ExpenseListModal(ModalScreen):
                 yield self.list_view
 
                 # Footer instructions
-                yield Static("\[N] New Expense  \[E] Edit  \[X] Delete", id="instructions-footer")
+                yield Static("\[N] New Expense  \[Enter] Edit  \[X] Delete", id="instructions-footer")
 
     async def on_mount(self):
         """Populate ListView after it's mounted."""
-        self.list_view.clear()
-
-        # Append items now, using `await` because append is async
-        for entry in self.expenses:
-            description, name, amount = [i[1] for i in entry.items()]
-            await self.list_view.append( ListItem(EntryRow( name, amount, description ) ))
-
-        # Focus first item
-        if self.list_view.children:
-            self.list_view.index = 0
-            self.list_view.focus()
+        await self.refresh_list()
 
     def action_new_expense(self):
         """Open a new expense dialog from within this modal."""
@@ -197,11 +187,21 @@ class ExpenseListModal(ModalScreen):
             'value': result["Amount"]
         }
 
-        # Update ledger to add in new entry
-        self.ledger.add_new_expense_entry(self.title, new_entry)
+        self.ledger.add_new_expense_entry(self.title, new_entry) # Add new entry to the ledger
+        self.call_later(self.refresh_list) # Refresh the list view so that the content is date-sorted
 
-        # Append to ListView
-        self.list_view.append(ListItem(EntryRow(new_entry['payment_date'], new_entry['value'], new_entry['description'])))
+    async def refresh_list(self):
+        self.list_view.clear()
+
+        # Pull sorted entries from ledger
+        entries = self.ledger.current_expenses[self.title]["entries"]
+
+        for entry in entries:
+            await self.list_view.append( ListItem(EntryRow(entry["payment_date"], entry["value"], entry["description"])) )
+
+        if self.list_view.children:
+            self.list_view.index = 0
+            self.list_view.focus()
 
 class ConfirmDeleteModal(ModalScreen[bool]):
     BINDINGS = [
