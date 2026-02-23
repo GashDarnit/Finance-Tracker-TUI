@@ -3,7 +3,7 @@ from textual.widgets import Input, Label, ListItem, ListView, Static
 from textual.containers import Container, Horizontal, Vertical, VerticalScroll
 from textual import events
 
-from Utils.CustomWidgets import ExpenseRow
+from Utils.CustomWidgets import EntryRow, ExpenseRow
 from Utils.LedgerStore import LedgerStore
 
 class NewExpenseModal(ModalScreen):
@@ -125,20 +125,19 @@ class ExpenseListModal(ModalScreen):
             margin-bottom: 1;
         }
 
-        ExpenseRow {
+        EntryRow {
             width: 100%;
             height: auto;
             padding: 0 1;
         }
 
-        ExpenseRow > Static:first-child {
+        EntryRow > Static:first-child {
             width: 1fr;
         }
 
-        ExpenseRow > Static:last-child {
+        EntryRow > Static:last-child {
             width: auto;
             text-align: right;
-            color: #AFAFD7;
             padding-right: 2;
         }
     """
@@ -175,8 +174,8 @@ class ExpenseListModal(ModalScreen):
 
         # Append items now, using `await` because append is async
         for entry in self.expenses:
-            name, amount = [i[1] for i in entry.items()]
-            await self.list_view.append( ListItem(ExpenseRow( name, amount ) ))
+            description, name, amount = [i[1] for i in entry.items()]
+            await self.list_view.append( ListItem(EntryRow( name, amount, description ) ))
 
         # Focus first item
         if self.list_view.children:
@@ -193,15 +192,21 @@ class ExpenseListModal(ModalScreen):
             return
 
         new_entry = {
+            'description': result["Name"],
             'payment_date': result["Payment Date"],
             'value': result["Amount"]
         }
+
+        # new_entry = {
+        #     'payment_date': result["Payment Date"],
+        #     'value': result["Amount"]
+        # }
 
         # Update ledger to add in new entry
         self.ledger.add_new_expense_entry(self.title, new_entry)
 
         # Append to ListView
-        self.list_view.append(ListItem(ExpenseRow(new_entry['payment_date'], new_entry['value'])))
+        self.list_view.append(ListItem(EntryRow(new_entry['payment_date'], new_entry['value'], new_entry['description'])))
 
 class ConfirmDeleteModal(ModalScreen[bool]):
     BINDINGS = [
