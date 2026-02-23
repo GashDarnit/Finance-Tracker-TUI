@@ -119,14 +119,20 @@ class LedgerStore:
     def add_new_expense(self, expense) -> None:
         '''
         "Name": name,
+        "Description": description,
         "Payment Date": date,
         "Amount": float(amount),
+
         '''
-        name, date, amount = [item[1] for item in expense.items()]
+        name, description, date, amount = [item[1] for item in expense.items()]
+        
+
         new_entry = {
+            'description': description,
             'payment_date': date,
             'value': amount
         }
+
         if name in self.current_expenses:
             self.current_expenses[name]['entries'].append(new_entry)
 
@@ -141,8 +147,7 @@ class LedgerStore:
             self.current_expenses[name]['entries'] = [new_entry]
             self.current_expenses[name]['value'] = amount
 
-
-        print(f"[Ledger] New {name} amount: {self.current_expenses[name]['value']}")
+        if name == "Savings": self.update_current_savings(new_entry['value'])
 
         self.save_current_expenses()
         self.update_current_balance(amount)
@@ -161,6 +166,8 @@ class LedgerStore:
         # Running sum; Should be more accurate this way
         self.current_expenses[title]['value'] = sum( entry['value'] for entry in self.current_expenses[title]['entries'] )
 
+        if title == "Savings": self.update_current_savings(new_entry['value'])
+
         self.save_current_expenses()
         self.update_current_balance(new_entry['value'])
     
@@ -168,6 +175,7 @@ class LedgerStore:
         expense_total = self._get_entry_total(expense)
         del self.current_expenses[expense]
 
+        if expense == 'Savings': self.update_current_savings(-expense_total)
         self.save_current_expenses()
         self.update_current_balance(-expense_total) # Negative since we want balance to go up
 
@@ -195,7 +203,7 @@ class LedgerStore:
 
     def update_current_savings(self, savings_change) -> float:
         # Should work for both positive and negative values
-        self.current_savings -= savings_change
+        self.current_savings += savings_change
         self.save_current_savings()
 
         return self.current_savings
