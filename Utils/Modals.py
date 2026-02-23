@@ -197,11 +197,6 @@ class ExpenseListModal(ModalScreen):
             'value': result["Amount"]
         }
 
-        # new_entry = {
-        #     'payment_date': result["Payment Date"],
-        #     'value': result["Amount"]
-        # }
-
         # Update ledger to add in new entry
         self.ledger.add_new_expense_entry(self.title, new_entry)
 

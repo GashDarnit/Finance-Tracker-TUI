@@ -1,6 +1,7 @@
 import json
 import os
 import glob
+from datetime import datetime
 from typing import Dict, List
 
 class LedgerStore:
@@ -15,17 +16,22 @@ class LedgerStore:
 
     def load_current_expenses(self) -> Dict:
         expenses = {}
+
         with open(self.current_month_json) as file:
             data = json.load(file)
 
             for expense, instances in data.items():
-                expenses[expense] = {'entries': instances, 'value': 0.0}
-                cur_sum = 0
-                for entry in instances:
-                    cur_sum += entry['value']
 
-                expenses[expense]['value'] = cur_sum
-        
+                # Sort entries by date
+                instances.sort( key=lambda x: datetime.strptime(x["payment_date"], "%d-%m-%Y") )
+
+                cur_sum = sum(entry["value"] for entry in instances)
+
+                expenses[expense] = {
+                    "entries": instances,
+                    "value": cur_sum,
+                }
+
         return expenses
     
     def load_current_balance(self) -> float:
@@ -143,11 +149,17 @@ class LedgerStore:
 
     def add_new_expense_entry(self, title, new_entry) -> None:
         '''
+        "Name": description,
         "Payment Date": date,
-        "Amount": float(amount),
+        "Amount": float(amount)
         '''
         self.current_expenses[title]['entries'].append(new_entry)
-        self.current_expenses[title]['value'] += new_entry['value']
+
+        # Sort list of entries in case the new entry is from an earlier date
+        self.current_expenses[title]['entries'].sort( key=lambda x: datetime.strptime(x["payment_date"], "%d-%m-%Y") )
+
+        # Running sum; Should be more accurate this way
+        self.current_expenses[title]['value'] = sum( entry['value'] for entry in self.current_expenses[title]['entries'] )
 
         self.save_current_expenses()
         self.update_current_balance(new_entry['value'])
