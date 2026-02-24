@@ -6,7 +6,7 @@ from textual.widgets import Footer, Header, ListView, ListItem, Static
 from Utils.LedgerStore import LedgerStore
 from Utils.LeftPanes import HeaderBox, OptionsList, BalanceBox, SavingsBox
 from Utils.CustomWidgets import ExpenseRow
-from Utils.Modals import NewExpenseModal, ExpenseListModal, ConfirmDeleteModal
+from Utils.Modals import DepositBalanceModal, NewExpenseModal, ExpenseListModal, ConfirmDeleteModal
 
 
 finance_ledger = LedgerStore()
@@ -85,7 +85,7 @@ class RightPanel(Vertical):
             yield self.list_view
 
         self.total_expense = Static("Total: ", id="expense-total")
-        self.instructions = Static("[N] New Expense\t\t[X] Delete Expense\t\t[Enter] Select Expense", id="instructions-footer", markup=False)
+        self.instructions = Static("[D] Deposit Balance\t[N] New Expense\t\t[X] Delete Expense\t[Enter] Select Expense", id="instructions-footer", markup=False)
         yield self.total_expense
         yield self.instructions
 
@@ -127,6 +127,7 @@ class FinanceTracker(Screen):
         ("down", "move_down", "Move selection down"),
         ("up", "move_up", "Move selection up"),
 
+        ("d", "deposit_balance", "Deposit Balance"),
         ("n", "new_expense", "New Expense"),
         ("x", "delete_expense", "Delete Expense"),
         ("q", "quit", "Quit"),
@@ -158,6 +159,17 @@ class FinanceTracker(Screen):
                 focused.index = 0
             else:
                 focused.index = max(focused.index - 1, 0)
+
+    def action_deposit_balance(self):
+        focused = self.focused
+
+        # Must be focused on the right panel ListView
+        if focused is not self.right_panel.list_view: return
+
+        # Must be showing Current Expenses
+        if self.right_panel.current_title != "Current Expenses":  return
+
+        self.open_deposit_balance_dialog()
 
     def action_new_expense(self):
         focused = self.focused
@@ -197,10 +209,17 @@ class FinanceTracker(Screen):
             lambda confirmed: self.on_delete_expense_submitted(confirmed, expense_name)
         )
     
+    def open_deposit_balance_dialog(self):
+        self.app.push_screen(DepositBalanceModal(), self.on_balace_deposited)
 
     def open_new_expense_dialog(self):
         self.app.push_screen(NewExpenseModal(), self.on_new_expense_submitted)
 
+    def on_balace_deposited(self, result):
+        if result is None: return
+
+        finance_ledger.update_current_balance(-result['Amount'])
+        self.balance.update_balance(finance_ledger.get_current_balance()) # Update Balance display
 
     def on_new_expense_submitted(self, result):
         if result is None: return
