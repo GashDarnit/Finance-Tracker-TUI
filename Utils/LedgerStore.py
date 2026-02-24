@@ -207,6 +207,29 @@ class LedgerStore:
         self.save_current_savings()
 
         return self.current_savings
+    
+    def update_expense_entry(self, expense: str, index: int, updated_entry: dict) -> None:
+        # Add old total to balance; We'll reduce it with new amount later
+        old_total = self._get_entry_total(expense)
+        self.update_current_balance(-old_total)
+
+        # Update the entry
+        self.current_expenses[expense]["entries"][index] = updated_entry
+        self.current_expenses[expense]["entries"].sort( key=lambda x: datetime.strptime(x["payment_date"], "%d-%m-%Y") ) # Sort the entry since date could be updated too
+
+
+        # Update the expense with new total
+        new_total = self._get_entry_total(expense)
+        self.update_current_balance(new_total)
+        self.current_expenses[expense]["value"] = new_total
+
+        self.save_current_expenses()
+
+        # If the expense is Savings, we can simply just store the value since they should behave the same anyways
+        if expense == 'Savings': 
+            self.current_savings = new_total
+            self.save_current_savings()
+
 
     def is_json_file_empty(self):
         return os.path.getsize(self.current_month_json) == 0

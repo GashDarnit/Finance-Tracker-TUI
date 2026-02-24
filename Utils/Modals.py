@@ -85,6 +85,84 @@ class NewExpenseModal(ModalScreen):
         })
 
 
+class EditExpenseModal(ModalScreen):
+    DEFAULT_CSS = """
+        ModalScreen {
+            background: transparent;
+        }
+
+        ModalScreen {
+            background: transparent;
+        }
+
+        Container {
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            align: center middle;
+        }
+
+        #dialog {
+            width: 60%;
+            height: auto;
+            max-width: 70;
+            min-width: 40;
+            padding: 1 2;
+            border: round #AFAFD7;
+        }
+
+
+        #dialog-title {
+            text-style: bold;
+            margin-bottom: 1;
+            text-align: center;
+        }
+    """
+
+    BINDINGS = [
+        ("escape", "dismiss", "Cancel"),
+    ]
+
+    def __init__(self, entry: dict):
+        super().__init__()
+        self.entry = entry
+
+    def compose(self):
+        with Container():
+            with Vertical(id="dialog"):
+                yield Label("Edit Expense", id="dialog-title")
+
+                self.date = Input(id="expense-date")
+                self.description_input = Input(id="expense-desc")
+                self.amount_input = Input(id="expense-amount", type="number")
+
+                yield self.date
+                yield self.description_input
+                yield self.amount_input
+
+
+    def on_mount(self):
+        self.date.value = self.entry["payment_date"]
+        self.description_input.value = self.entry["description"]
+        self.amount_input.value = str(self.entry["value"])
+
+    def on_input_submitted(self, event: Input.Submitted):
+        self.submit()
+
+    def submit(self):
+        date = self.date.value.strip()
+        description = self.description_input.value.strip()
+        amount = self.amount_input.value.strip()
+
+        if not date or not description or not amount:
+            return  # later: show error
+
+        self.dismiss({
+            "Description": description,
+            "Payment Date": date,
+            "Amount": float(amount),
+        })
+
 class NewEntryModal(ModalScreen):
     DEFAULT_CSS = """
         ModalScreen {
@@ -251,6 +329,21 @@ class ExpenseListModal(ModalScreen):
         """Populate ListView after it's mounted."""
         await self.refresh_list()
 
+    async def on_list_view_selected(self, event: ListView.Selected) -> None:
+        """Triggered when user presses Enter on an entry."""
+
+        selected_index = event.list_view.index
+        entries = self.ledger.current_expenses[self.title]["entries"]
+
+        if selected_index is None or selected_index >= len(entries): return
+
+        selected_entry = entries[selected_index]
+
+        self.app.push_screen(
+            EditExpenseModal(selected_entry),
+            lambda result: self.on_expense_edited(result, selected_index)
+        )
+
     def action_new_expense(self):
         """Open a new expense dialog from within this modal."""
         self.app.push_screen(NewEntryModal(), self.on_new_expense_submitted)
@@ -274,6 +367,20 @@ class ExpenseListModal(ModalScreen):
             ConfirmDeleteModal(display_name),
             lambda confirmed: self.on_delete_confirmed(confirmed, selected_index)
         )
+
+    def on_expense_edited(self, result, index):
+        """Callback when EditExpenseModal is submitted."""
+        if result is None:
+            return
+
+        new_entry = {
+            'description': result["Description"],
+            'payment_date': result["Payment Date"],
+            'value': result["Amount"]
+        }
+
+        self.ledger.update_expense_entry(self.title, index, new_entry)
+        self.call_later(self.refresh_list) # Refresh the list view so that the content is date-sorted
 
     def on_new_expense_submitted(self, result):
         """Callback when NewExpenseModal is submitted."""
