@@ -1,7 +1,9 @@
 import json
 import os
+import shutil
 import glob
 from datetime import datetime
+from dateutil.relativedelta import relativedelta
 from typing import Dict, List
 
 class LedgerStore:
@@ -13,6 +15,9 @@ class LedgerStore:
         self.current_expenses = self.load_current_expenses() if not self.is_json_file_empty() else {}
         self.current_balance = self.load_current_balance()
         self.current_savings = self.load_current_savings()
+
+        self._check_new_month_from_entries() # Check if a new month or year has passed (Probably really only need to check month but ehh)
+
 
     def load_current_expenses(self) -> Dict:
         expenses = {}
@@ -217,7 +222,6 @@ class LedgerStore:
         self.current_expenses[expense]["entries"][index] = updated_entry
         self.current_expenses[expense]["entries"].sort( key=lambda x: datetime.strptime(x["payment_date"], "%d-%m-%Y") ) # Sort the entry since date could be updated too
 
-
         # Update the expense with new total
         new_total = self._get_entry_total(expense)
         self.update_current_balance(new_total)
@@ -229,7 +233,6 @@ class LedgerStore:
         if expense == 'Savings': 
             self.current_savings = new_total
             self.save_current_savings()
-
 
     def is_json_file_empty(self):
         return os.path.getsize(self.current_month_json) == 0
@@ -244,3 +247,37 @@ class LedgerStore:
 
         return current_sum
 
+    def _check_new_month_from_entries(self):
+        if not self.current_expenses:
+            return
+        
+        today = datetime.today()
+        current_month = today.month
+        current_year = today.year
+
+        # Find the earliest payment date across all categories
+        earliest_payment = min( datetime.strptime(payments['entries'][0]["payment_date"], "%d-%m-%Y") for payments in self.current_expenses.values() if payments )
+
+        # If the month or year is different from the current time, then we reset the Ledger; Time can only go forward after all
+        if earliest_payment.month != current_month or earliest_payment.year != current_year:
+            self._reset_ledger()
+
+    def _reset_ledger(self):
+        if self.current_expenses:
+            self.save_current_expenses()
+
+            today = datetime.today()
+            last_month = today - relativedelta(months=1) # Get 1 month before
+            history_filename = last_month.strftime("%B %Y") + ".json"
+
+            try:
+                os.rename(self.current_month_json, history_filename) # Rename old 'current_expenses.json' to '{Month} {Year}.json'
+                shutil.move(history_filename, os.path.join(self.HISTORY_PATH, history_filename)) # Move the file to history folder
+                self.current_expenses = {} # Reset current expenses
+                self.save_current_expenses() # Save the empty dict
+
+            except Exception as e:
+                print(f"Something went wrong, general exception caught: {e}")
+
+
+            

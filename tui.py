@@ -164,10 +164,12 @@ class FinanceTracker(Screen):
         focused = self.focused
 
         # Must be focused on the right panel ListView
-        if focused is not self.right_panel.list_view: return
+        if focused is not self.right_panel.list_view: 
+            return
 
         # Must be showing Current Expenses
-        if self.right_panel.current_title != "Current Expenses":  return
+        if self.right_panel.current_title != "Current Expenses":  
+            return
 
         self.open_deposit_balance_dialog()
 
@@ -216,13 +218,15 @@ class FinanceTracker(Screen):
         self.app.push_screen(NewExpenseModal(), self.on_new_expense_submitted)
 
     def on_balace_deposited(self, result):
-        if result is None: return
+        if result is None: 
+            return
 
         finance_ledger.update_current_balance(-result['Amount'])
         self.balance.update_balance(finance_ledger.get_current_balance()) # Update Balance display
 
     def on_new_expense_submitted(self, result):
-        if result is None: return
+        if result is None: 
+            return
         
         finance_ledger.add_new_expense(result) # Add new entry to ledger
         self.right_panel.update_content('Current Expenses', finance_ledger.get_current_expenses()) # Update content
@@ -232,7 +236,8 @@ class FinanceTracker(Screen):
         self.savings.update_savings(finance_ledger.get_current_savings())
 
     def on_delete_expense_submitted(self, confirmed, expense_name):
-        if not confirmed: return
+        if not confirmed: 
+            return
         
         finance_ledger.remove_expense(expense_name) # Add new entry to ledger
         self.right_panel.update_content('Current Expenses', finance_ledger.get_current_expenses()) # Update content
@@ -304,14 +309,18 @@ class FinanceTracker(Screen):
         if event.list_view is self.options_list:
             list_item = event.item
             static_widgets = list_item.query(Static)
-            if not static_widgets: return
+
+            if not static_widgets: 
+                return
+
             option_text = static_widgets[0].render()
 
             if self.right_panel.list_view.children and option_text != 'Dashboard':
                 # Focus on the first item in the right panel
                 self.right_panel.list_view.index = 0
                 self.right_panel.list_view.focus()
-            return  # done
+
+            return
 
         # =============== RIGHT PANEL selection logic ===============
         if event.list_view is self.right_panel.list_view:

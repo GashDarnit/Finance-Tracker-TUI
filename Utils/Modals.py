@@ -335,7 +335,8 @@ class ExpenseListModal(ModalScreen):
         selected_index = event.list_view.index
         entries = self.ledger.current_expenses[self.title]["entries"]
 
-        if selected_index is None or selected_index >= len(entries): return
+        if selected_index is None or selected_index >= len(entries): 
+            return
 
         selected_entry = entries[selected_index]
 
