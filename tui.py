@@ -74,6 +74,10 @@ class RightPanel(Vertical):
     }
 
     """
+    
+    def __init__(self):
+        super().__init__()
+        self.view_mode = "None"
 
     def compose(self) -> ComposeResult:
         self.current_title = None
@@ -101,15 +105,53 @@ class RightPanel(Vertical):
 
         # Add new items
         if title == 'Current Expenses':
+            self.view_mode = "expenses"
             self.instructions.display = True
             for name, content in items.items(): 
                 self.list_view.append( ListItem(ExpenseRow(name, content['value'])) )
 
+            self.query_one("#instructions-footer", Static).update("[D] Deposit Balance\t[N] New Expense\t\t[X] Delete Expense\t[Enter] Select Expense")
             self.query_one("#expense-total", Static).update(f"Total:\tRM {finance_ledger.get_total_expenses():.2f}")
+
+        elif title == 'Expenses History':
+            self.view_mode = "history"
+            self.total_expense.display = False
+            self.instructions.display = False
+
+            for filename in items:
+                self.list_view.append(ListItem(Static(filename)))
 
         else:
             self.instructions.display = False
+            self.total_expense.display = False
             for item in items: self.list_view.append(ListItem(Static(item)))
+
+    def show_history_snapshot(self, filename, snapshot_data):
+        """Display selected history snapshot in read-only mode."""
+
+        self.current_title = filename
+        self.view_mode = "history_snapshot"
+
+        # Update title
+        right_content = self.query_one("#right-content", Static)
+        right_content.update(f"{filename} (Snapshot)")
+
+        # Clear previous list
+        self.list_view.clear()
+
+        # Render like Current Expenses
+        for name, content in snapshot_data.items():
+            self.list_view.append(
+                ListItem(ExpenseRow(name, content["value"]))
+            )
+
+        total = sum(item["value"] for item in snapshot_data.values())
+
+        self.total_expense.update(f"Total:\tRM {total:.2f}")
+        self.instructions.update("[B] Return")
+
+        self.total_expense.display = True
+        self.instructions.display = True
 
 
 
@@ -130,6 +172,7 @@ class FinanceTracker(Screen):
         ("d", "deposit_balance", "Deposit Balance"),
         ("n", "new_expense", "New Expense"),
         ("x", "delete_expense", "Delete Expense"),
+        ("b", "go_back", "Back"),
         ("q", "quit", "Quit"),
     ]
 
@@ -210,7 +253,20 @@ class FinanceTracker(Screen):
             ConfirmDeleteModal(expense_name),
             lambda confirmed: self.on_delete_expense_submitted(confirmed, expense_name)
         )
-    
+
+    def action_go_back(self):
+        if self.right_panel.view_mode != "history_snapshot":
+            return
+
+        focused = self.focused
+
+        if focused is not self.right_panel.list_view:
+            return
+
+        self.right_panel.list_view.index = 0
+        self.right_panel.list_view.focus()
+        self.right_panel.update_content( "Expenses History", finance_ledger.get_expenses_history() )
+
     def open_deposit_balance_dialog(self):
         self.app.push_screen(DepositBalanceModal(), self.on_balace_deposited)
 
@@ -325,24 +381,37 @@ class FinanceTracker(Screen):
         # =============== RIGHT PANEL selection logic ===============
         if event.list_view is self.right_panel.list_view:
             # Only show modal if we're in 'Current Expenses' mode
-            if self.right_panel.current_title != "Current Expenses":
+            if self.right_panel.current_title == "Current Expenses":
+                # Get selected item
+                selected_index = self.right_panel.list_view.index
+                if selected_index is None:
+                    return
+
+                selected_item = self.right_panel.list_view.children[selected_index]
+                static_widgets = selected_item.query(Static)
+                current_expense = static_widgets[0].render()
+                expense_entries = finance_ledger.get_current_expenses()[current_expense]['entries']
+
+                # Push the modal
+                self.app.push_screen( 
+                    ExpenseListModal(title=current_expense, expenses=expense_entries, ledger=finance_ledger), 
+                    self.on_new_expense_entry_submitted
+                )
+
+            elif self.right_panel.current_title == "Expenses History":
+                selected_index = self.right_panel.list_view.index
+                if selected_index is None:
+                    return
+
+                selected_item = self.right_panel.list_view.children[selected_index]
+                static_widgets = selected_item.query(Static)
+                filename = static_widgets[0].render()
+
+                history_data = finance_ledger.load_expense_history(str(filename) + ".json")
+                self.right_panel.show_history_snapshot(filename, history_data)
                 return
 
-            # Get selected item
-            selected_index = self.right_panel.list_view.index
-            if selected_index is None:
-                return
-
-            selected_item = self.right_panel.list_view.children[selected_index]
-            static_widgets = selected_item.query(Static)
-            current_expense = static_widgets[0].render()
-            expense_entries = finance_ledger.get_current_expenses()[current_expense]['entries']
-
-            # Push the modal
-            self.app.push_screen( 
-                ExpenseListModal(title=current_expense, expenses=expense_entries, ledger=finance_ledger), 
-                self.on_new_expense_entry_submitted
-            )
+            else: return
 
     def on_new_expense_entry_submitted(self, _):
         # Select the first option in the list

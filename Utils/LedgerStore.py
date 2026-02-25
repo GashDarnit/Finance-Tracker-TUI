@@ -38,6 +38,27 @@ class LedgerStore:
                 }
 
         return expenses
+
+    def load_expense_history(self, filename: str) -> Dict:
+        history_filename = os.path.join(self.HISTORY_PATH, filename)
+        expenses = {}
+
+        with open(history_filename) as file:
+            data = json.load(file)
+
+            for expense, instances in data.items():
+
+                # Sort entries by date
+                instances.sort( key=lambda x: datetime.strptime(x["payment_date"], "%d-%m-%Y") )
+
+                cur_sum = sum(entry["value"] for entry in instances)
+
+                expenses[expense] = {
+                    "entries": instances,
+                    "value": cur_sum,
+                }
+
+        return expenses
     
     def load_current_balance(self) -> float:
         try:
