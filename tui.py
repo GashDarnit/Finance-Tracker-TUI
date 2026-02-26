@@ -107,6 +107,7 @@ class RightPanel(Vertical):
         if title == 'Current Expenses':
             self.view_mode = "expenses"
             self.instructions.display = True
+            self.total_expense.display = True
             for name, content in items.items(): 
                 self.list_view.append( ListItem(ExpenseRow(name, content['value'])) )
 

@@ -12,11 +12,30 @@ class LedgerStore:
         self.current_month_json = "current_expenses.json"
         self.current_balance_json = "current_balance.json"
         self.current_savings_json = "current_savings.json"
+
+        self.check_first_time_loading() # If user has ran the application before, they'd have the json files, otherwise, create them
+
         self.current_expenses = self.load_current_expenses() if not self.is_json_file_empty() else {}
         self.current_balance = self.load_current_balance()
         self.current_savings = self.load_current_savings()
 
         self._check_new_month_from_entries() # Check if a new month or year has passed (Probably really only need to check month but ehh)
+
+    def check_first_time_loading(self):
+        """ Check if the user has the data files """
+
+        if not os.path.exists(self.current_month_json):
+            with open(self.current_month_json, "w") as file:
+                json.dump({}, file, indent=4)
+
+        if not os.path.exists(self.current_balance_json):
+            with open(self.current_balance_json, "w") as file:
+                json.dump({"Balance": 0}, file, indent=4)
+        
+        if not os.path.exists(self.current_savings_json):
+            with open(self.current_savings_json, "w") as file:
+                json.dump({"Savings": 0}, file, indent=4)
+
 
 
     def load_current_expenses(self) -> Dict:
@@ -44,7 +63,7 @@ class LedgerStore:
         expenses = {}
 
         with open(history_filename) as file:
-            data = json.load(file)
+            data = json.load(file)['Expense']
 
             for expense, instances in data.items():
 
@@ -102,13 +121,23 @@ class LedgerStore:
         
         return True
 
-    def save_current_expenses(self) -> bool:
+    def save_current_expenses(self, is_history=False) -> bool:
         try:
             # Create a new dict in the original format
             data_to_save = {
                 service: info["entries"] if isinstance(info, dict) else info
                 for service, info in self.current_expenses.items()
             }
+
+            if is_history:
+                temp = data_to_save
+                total = self.get_total_expenses()
+                data_to_save = {
+                    'Expense': temp,
+                    'Total': total,
+                    'Balance': self.current_balance,
+                    'Savings': self.current_savings
+                }
 
             with open(self.current_month_json, "w") as file:
                 json.dump(data_to_save, file, indent=4)
@@ -138,7 +167,8 @@ class LedgerStore:
     
     def get_total_expenses(self) -> float:
         total = 0
-        for _, content in self.current_expenses.items(): total += content['value']
+        for _, content in self.current_expenses.items(): 
+            total += content['value']
 
         return total
 
@@ -285,10 +315,10 @@ class LedgerStore:
 
     def _reset_ledger(self):
         if self.current_expenses:
-            self.save_current_expenses()
+            self.save_current_expenses(is_history=True) # Optional flag that lets us store Balance and Savings
 
             today = datetime.today()
-            last_month = today - relativedelta(months=1) # Get 1 month before
+            last_month = today - relativedelta(months=2) # Get 1 month before
             history_filename = last_month.strftime("%B %Y") + ".json"
 
             try:

@@ -1,1 +1,3 @@
 textual==6.2.1
+textual-plotext
+python-dateutil
