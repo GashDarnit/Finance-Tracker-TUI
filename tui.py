@@ -7,6 +7,7 @@ from Utils.LedgerStore import LedgerStore
 from Utils.LeftPanes import HeaderBox, OptionsList, BalanceBox, SavingsBox
 from Utils.CustomWidgets import ExpenseRow
 from Utils.Modals import DepositBalanceModal, NewExpenseModal, ExpenseListModal, ConfirmDeleteModal
+from Utils.DashboardUtils import DashboardScreen
 
 
 finance_ledger = LedgerStore()
@@ -78,18 +79,20 @@ class RightPanel(Vertical):
     def __init__(self):
         super().__init__()
         self.view_mode = "None"
+        self.list_view: ListView | None = None
+        self.dashboard_view = None
 
     def compose(self) -> ComposeResult:
         self.current_title = None
 
-        with VerticalScroll(id="right-scroll"):
-            yield Static("Right Panel - Dynamic Content Here", id="right-content")
-
-            self.list_view = ListView()
-            yield self.list_view
-
+        self.content_header = Static("Right Panel - Dynamic Content Here", id="right-content")
         self.total_expense = Static("Total: ", id="expense-total")
         self.instructions = Static("[D] Deposit Balance\t[N] New Expense\t\t[X] Delete Expense\t[Enter] Select Expense", id="instructions-footer", markup=False)
+
+        yield self.content_header
+        yield VerticalScroll(id="right-scroll")
+
+        
         yield self.total_expense
         yield self.instructions
 
@@ -100,14 +103,27 @@ class RightPanel(Vertical):
         right_content.update(f"{title}")
         self.current_title = title
 
-        # Clear previous list items
-        self.list_view.clear()
+        # Remove previous dynamic widget
+        if self.list_view:
+            self.list_view.remove()
+            self.list_view = None
+
+        if self.dashboard_view:
+            self.dashboard_view.remove()
+            self.dashboard_view = None
 
         # Add new items
         if title == 'Current Expenses':
-            self.view_mode = "expenses"
+            self.content_header.display = True
             self.instructions.display = True
             self.total_expense.display = True
+
+            self.view_mode = "expenses"
+
+            self.list_view = ListView()
+            self.query_one("#right-scroll").mount(self.list_view)
+
+            
             for name, content in items.items(): 
                 self.list_view.append( ListItem(ExpenseRow(name, content['value'])) )
 
@@ -115,17 +131,37 @@ class RightPanel(Vertical):
             self.query_one("#expense-total", Static).update(f"Total:\tRM {finance_ledger.get_total_expenses():.2f}")
 
         elif title == 'Expenses History':
-            self.view_mode = "history"
+            self.content_header.display = True
             self.total_expense.display = False
             self.instructions.display = False
+
+            self.view_mode = "history"
+            self.list_view = ListView()
+            self.query_one("#right-scroll").mount(self.list_view)
 
             for filename in items:
                 self.list_view.append(ListItem(Static(filename)))
 
-        else:
-            self.instructions.display = False
+        elif title == 'Dashboard':
+            self.view_mode = "dashboard"
+            self.content_header.display = False
             self.total_expense.display = False
-            for item in items: self.list_view.append(ListItem(Static(item)))
+            self.instructions.display = False
+
+            self.dashboard_view = DashboardScreen(
+                finance_ledger.get_current_balance(),
+                finance_ledger.get_total_expenses(), 
+                finance_ledger.get_current_savings(),
+                items
+            )
+
+            self.query_one("#right-scroll").mount(self.dashboard_view)
+
+        else:
+            pass
+            # self.instructions.display = False
+            # self.total_expense.display = False
+            # for item in items: self.list_view.append(ListItem(Static(item)))
 
     def show_history_snapshot(self, filename, snapshot_data):
         """Display selected history snapshot in read-only mode."""
@@ -154,9 +190,19 @@ class RightPanel(Vertical):
         self.total_expense.display = True
         self.instructions.display = True
 
+    def show_overview_dashboard(self):
+        self.total_expense.display = False
+        self.instructions.display = False
+
+
 
 
 class FinanceTracker(Screen):
+    DEFAULT_CSS = """
+    OptionsList {
+        height: 1fr;
+    }
+    """
     BINDINGS = [
         # Vim-style keybinds
         ("h", "focus_left", "Focus left panel"),
@@ -183,7 +229,7 @@ class FinanceTracker(Screen):
 
     def action_focus_right(self):
         """Move focus to right panel list, if there are items."""
-        if self.right_panel.list_view.children:
+        if self.right_panel.list_view and self.right_panel.list_view.children:
             self.right_panel.list_view.index = 0
             self.right_panel.list_view.focus()
 
@@ -205,12 +251,6 @@ class FinanceTracker(Screen):
                 focused.index = max(focused.index - 1, 0)
 
     def action_deposit_balance(self):
-        focused = self.focused
-
-        # Must be focused on the right panel ListView
-        if focused is not self.right_panel.list_view: 
-            return
-
         # Must be showing Current Expenses
         if self.right_panel.current_title != "Current Expenses":  
             return
@@ -218,12 +258,6 @@ class FinanceTracker(Screen):
         self.open_deposit_balance_dialog()
 
     def action_new_expense(self):
-        focused = self.focused
-
-        # Must be focused on the right panel ListView
-        if focused is not self.right_panel.list_view:
-            return
-
         # Must be showing Current Expenses
         if self.right_panel.current_title != "Current Expenses": 
             return
@@ -349,13 +383,16 @@ class FinanceTracker(Screen):
 
         option_text = static_widgets[0].render()
 
+        items = []
         if option_text == 'Current Expenses':
             items = finance_ledger.get_current_expenses()
         elif option_text == 'Expenses History':
             items = finance_ledger.get_expenses_history()
-        else:
-            items = []
-
+        elif option_text == 'Dashboard':
+            # Temporarily display this for now
+            # items = [str(i) for i in finance_ledger.get_history_dataset()]
+            items = finance_ledger.get_history_dataset()
+        
         self.right_panel.update_content(option_text, items)
 
 
@@ -372,7 +409,7 @@ class FinanceTracker(Screen):
 
             option_text = static_widgets[0].render()
 
-            if self.right_panel.list_view.children and option_text != 'Dashboard':
+            if self.right_panel.list_view and self.right_panel.list_view.children and option_text != 'Dashboard':
                 # Focus on the first item in the right panel
                 self.right_panel.list_view.index = 0
                 self.right_panel.list_view.focus()
@@ -383,6 +420,8 @@ class FinanceTracker(Screen):
         if event.list_view is self.right_panel.list_view:
             # Only show modal if we're in 'Current Expenses' mode
             if self.right_panel.current_title == "Current Expenses":
+                if not self.right_panel.list_view: return
+                
                 # Get selected item
                 selected_index = self.right_panel.list_view.index
                 if selected_index is None:
@@ -400,6 +439,8 @@ class FinanceTracker(Screen):
                 )
 
             elif self.right_panel.current_title == "Expenses History":
+                if not self.right_panel.list_view: return
+
                 selected_index = self.right_panel.list_view.index
                 if selected_index is None:
                     return
@@ -411,6 +452,10 @@ class FinanceTracker(Screen):
                 history_data = finance_ledger.load_expense_history(str(filename) + ".json")
                 self.right_panel.show_history_snapshot(filename, history_data)
                 return
+
+            elif self.right_panel.current_title == "Dashboard":
+                # Wanna make it select the bottom panel 
+                pass
 
             else: return
 

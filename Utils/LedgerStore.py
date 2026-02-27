@@ -288,6 +288,29 @@ class LedgerStore:
     def is_json_file_empty(self):
         return os.path.getsize(self.current_month_json) == 0
     
+    def get_history_dataset(self):
+        entries = []
+        for entry in glob.glob("History/*"): 
+            full_date = entry.split('/')[-1].split('.')[0]
+
+            date_obj = datetime.strptime(full_date, "%B %Y")
+            short_date = date_obj.strftime("%b %Y")  # Like Dec 2025
+
+            with open(entry) as file:
+                temp_data = json.load(file)
+
+            entries.append({
+                "Date": short_date,
+                "Balance": temp_data["Balance"],
+                "Total": temp_data["Total"],
+                "Savings": temp_data["Savings"]
+            })
+
+        # Sort by the original datetime objects
+        entries.sort(key=lambda x: datetime.strptime(x["Date"], "%b %Y"))
+                
+        return entries
+    
     def _get_entry_total(self, expense_name) -> float:
         current_sum = 0
 
