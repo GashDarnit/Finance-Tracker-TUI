@@ -63,7 +63,7 @@ class DashboardDataBox(VerticalScroll):
 
     def __init__(self, history_dataset: list):
         super().__init__()
-        self.history_dataset = history_dataset
+        self.history_dataset = history_dataset[::-1] # Reverse the list; We want to display latest entry up top, and oldest down bottom
         self.list_view = ListView()
 
     def compose(self) -> ComposeResult:
@@ -76,7 +76,7 @@ class DashboardDataBox(VerticalScroll):
 class DashboardScreen(Vertical):
     DEFAULT_CSS = """
         DashboardScreen {
-            margin-top: 1;
+            margin-top: 0;
         }
 
         DashboardDataBox {
@@ -121,7 +121,8 @@ class DashboardScreen(Vertical):
         labels = [d["Date"] for d in self.history_dataset]
 
         plt.plot(x, balances, label="Balance", marker="braille", color="blue")
-        plt.plot(x, expenses, label="Total", marker="braille", color="red")
+        plt.plot(x, expenses, label="Expenses", marker="braille", color="red")
         plt.plot(x, savings, label="Savings", marker="braille", color="green")
 
         plt.xticks(x, labels)
+        plt.title("Financial Overview")

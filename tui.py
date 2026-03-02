@@ -129,6 +129,23 @@ class RightPanel(Vertical):
             self.query_one("#instructions-footer", Static).update("[D] Deposit Balance\t[N] New Expense\t\t[X] Delete Expense\t[Enter] Select Expense")
             self.query_one("#expense-total", Static).update(f"Total:\tRM {finance_ledger.get_total_expenses():.2f}")
 
+        if title == 'Income':
+            self.content_header.display = True
+            self.instructions.display = True
+            self.total_expense.display = True
+
+            self.view_mode = "income"
+
+            self.list_view = ListView()
+            self.query_one("#right-scroll").mount(self.list_view)
+
+            
+            for name, content in items.items(): 
+                self.list_view.append( ListItem(ExpenseRow(name, content['value'])) )
+
+            self.query_one("#instructions-footer", Static).update("[D] Deposit Balance\t[N] New Income\t\t[X] Delete Income\t[Enter] Select Income")
+            self.query_one("#expense-total", Static).update(f"Total:\tRM {finance_ledger.get_total_income():.2f}")
+
         elif title == 'Expenses History':
             self.content_header.display = True
             self.total_expense.display = False
@@ -297,9 +314,9 @@ class FinanceTracker(Screen):
         if focused is not self.right_panel.list_view:
             return
 
+        self.right_panel.update_content( "Expenses History", finance_ledger.get_expenses_history() )
         self.right_panel.list_view.index = 0
         self.right_panel.list_view.focus()
-        self.right_panel.update_content( "Expenses History", finance_ledger.get_expenses_history() )
 
     def open_deposit_balance_dialog(self):
         self.app.push_screen(DepositBalanceModal(), self.on_balace_deposited)
@@ -310,7 +327,10 @@ class FinanceTracker(Screen):
     def on_balace_deposited(self, result):
         if result is None: 
             return
-
+        
+        self.right_panel.list_view.index = 0
+        self.right_panel.list_view.focus()
+        
         finance_ledger.update_current_balance(-result['Amount'])
         self.balance.update_balance(finance_ledger.get_current_balance()) # Update Balance display
 
@@ -320,6 +340,9 @@ class FinanceTracker(Screen):
         
         finance_ledger.add_new_expense(result) # Add new entry to ledger
         self.right_panel.update_content('Current Expenses', finance_ledger.get_current_expenses()) # Update content
+
+        self.right_panel.list_view.index = 0
+        self.right_panel.list_view.focus()
 
         # Update Balance and Savings display
         self.balance.update_balance(finance_ledger.get_current_balance())
@@ -331,6 +354,9 @@ class FinanceTracker(Screen):
         
         finance_ledger.remove_expense(expense_name) # Add new entry to ledger
         self.right_panel.update_content('Current Expenses', finance_ledger.get_current_expenses()) # Update content
+
+        self.right_panel.list_view.index = 0
+        self.right_panel.list_view.focus()
 
         # Update Balance and Savings display
         self.balance.update_balance(finance_ledger.get_current_balance())
@@ -385,6 +411,8 @@ class FinanceTracker(Screen):
         items = []
         if option_text == 'Current Expenses':
             items = finance_ledger.get_current_expenses()
+        elif option_text == 'Income':
+            items = finance_ledger.get_current_income()
         elif option_text == 'Expenses History':
             items = finance_ledger.get_expenses_history()
         elif option_text == 'Dashboard':
@@ -459,15 +487,12 @@ class FinanceTracker(Screen):
             else: return
 
     def on_new_expense_entry_submitted(self, _):
+        self.right_panel.update_content('Current Expenses', finance_ledger.get_current_expenses()) # Update content
+
         # Select the first option in the list
         if self.right_panel.list_view and self.right_panel.list_view.children:
             self.right_panel.list_view.index = 0
             self.right_panel.list_view.focus()
-
-        # self.right_panel.list_view.index = 0
-        # self.right_panel.list_view.focus()
-        
-        self.right_panel.update_content('Current Expenses', finance_ledger.get_current_expenses()) # Update content
 
         # Update Balance and Savings display
         self.balance.update_balance(finance_ledger.get_current_balance())

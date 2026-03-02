@@ -31,10 +31,15 @@ class OptionsList(ListView):
         border: round #AFAFD7;
         margin: 0 0;
     }
+
+    ListItem {
+        margin-left: 1;
+        margin-bottom: 1;
+    }
     """
 
     def __init__(self):
-        options = [ListItem(Static(f"Current Expenses")), ListItem(Static(f"Expenses History")), ListItem(Static(f"Dashboard"))]
+        options = [ListItem(Static(f"Current Expenses")), ListItem(Static(f"Income")), ListItem(Static(f"Expenses History")), ListItem(Static(f"Dashboard"))]
         super().__init__(*options)
         self.border_title = "Options"
         self.border_title_align = "center"

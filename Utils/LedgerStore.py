@@ -10,12 +10,14 @@ class LedgerStore:
     HISTORY_PATH = "History"
     def __init__(self) -> None:
         self.current_month_json = "current_expenses.json"
+        self.current_income_json= "current_income.json"
         self.current_balance_json = "current_balance.json"
         self.current_savings_json = "current_savings.json"
 
         self.check_first_time_loading() # If user has ran the application before, they'd have the json files, otherwise, create them
 
-        self.current_expenses = self.load_current_expenses() if not self.is_json_file_empty() else {}
+        self.current_expenses = self.load_current_expenses() if not self.is_json_file_empty(self.current_month_json) else {}
+        self.current_income = self.load_current_income() if not self.is_json_file_empty(self.current_income_json) else {}
         self.current_balance = self.load_current_balance()
         self.current_savings = self.load_current_savings()
 
@@ -26,6 +28,10 @@ class LedgerStore:
 
         if not os.path.exists(self.current_month_json):
             with open(self.current_month_json, "w") as file:
+                json.dump({}, file, indent=4)
+        
+        if not os.path.exists(self.current_income_json):
+            with open(self.current_income_json, "w") as file:
                 json.dump({}, file, indent=4)
 
         if not os.path.exists(self.current_balance_json):
@@ -40,13 +46,6 @@ class LedgerStore:
 
     def load_current_expenses(self) -> Dict:
         expenses = {}
-
-        # Check if the file is empty
-        try:
-            with open(self.current_month_json) as file:
-                data = json.load(file)
-        except (json.JSONDecodeError, FileNotFoundError):
-            return {}
 
         with open(self.current_month_json) as file:
             data = json.load(file)
@@ -105,6 +104,25 @@ class LedgerStore:
             savings = 0.0
 
         return savings
+
+    def load_current_income(self) -> Dict:
+        expenses = {}
+
+        with open(self.current_income_json) as file:
+            data = json.load(file)
+
+            for expense, instances in data.items():
+                # Sort entries by date
+                instances.sort( key=lambda x: datetime.strptime(x["payment_date"], "%d-%m-%Y") )
+
+                cur_sum = sum(entry["value"] for entry in instances)
+
+                expenses[expense] = {
+                    "entries": instances,
+                    "value": cur_sum,
+                }
+
+        return expenses
     
     def save_current_balance(self) -> bool:
         try:
@@ -154,10 +172,29 @@ class LedgerStore:
             return False
 
         return True
+    
+    def save_current_income(self) -> bool:
+        try:
+            # Create a new dict in the original format
+            data_to_save = {
+                service: info["entries"] if isinstance(info, dict) else info
+                for service, info in self.current_expenses.items()
+            }
+            with open(self.current_income_json, "w") as file:
+                json.dump(data_to_save, file, indent=4)
+
+        except Exception as e:
+            print(f"Failed to save file: {e}")
+            return False
+
+        return True
 
 
     def get_current_expenses(self):
         return self.current_expenses
+    
+    def get_current_income(self):
+        return self.current_income
     
     def get_current_balance(self):
         return self.current_balance
@@ -175,6 +212,13 @@ class LedgerStore:
     def get_total_expenses(self) -> float:
         total = 0
         for _, content in self.current_expenses.items(): 
+            total += content['value']
+
+        return total
+    
+    def get_total_income(self) -> float:
+        total = 0
+        for _, content in self.current_income.items(): 
             total += content['value']
 
         return total
@@ -215,6 +259,42 @@ class LedgerStore:
         self.save_current_expenses()
         self.update_current_balance(amount)
 
+    def add_new_income(self, expense) -> None:
+        '''
+        "Name": name,
+        "Description": description,
+        "Payment Date": date,
+        "Amount": float(amount),
+
+        '''
+        name, description, date, amount = [item[1] for item in expense.items()]
+        
+
+        new_entry = {
+            'description': description,
+            'payment_date': date,
+            'value': amount
+        }
+
+        if name in self.current_income:
+            self.current_income[name]['entries'].append(new_entry)
+
+            cur_sum = 0
+            for entry in self.current_income[name]['entries']:
+                cur_sum += entry['value']
+
+            self.current_income[name]['value'] = cur_sum
+
+        else:
+            self.current_income[name] = {}
+            self.current_income[name]['entries'] = [new_entry]
+            self.current_income[name]['value'] = amount
+
+        if name == "Savings": self.update_current_savings(new_entry['value'])
+
+        self.save_current_income()
+        self.update_current_balance(-amount) # Negative here since we want balance to go up
+
     def add_new_expense_entry(self, title, new_entry) -> None:
         '''
         "Name": description,
@@ -233,17 +313,38 @@ class LedgerStore:
 
         self.save_current_expenses()
         self.update_current_balance(new_entry['value'])
+
+    def add_new_income_entry(self, title, new_entry) -> None:
+        '''
+        "Name": description,
+        "Payment Date": date,
+        "Amount": float(amount)
+        '''
+        self.current_income[title]['entries'].append(new_entry)
+
+        # Sort list of entries in case the new entry is from an earlier date
+        self.current_income[title]['entries'].sort( key=lambda x: datetime.strptime(x["payment_date"], "%d-%m-%Y") )
+
+        # Running sum; Should be more accurate this way
+        self.current_income[title]['value'] = sum( entry['value'] for entry in self.current_expenses[title]['entries'] )
+
+        self.save_current_income()
+        self.update_current_balance(-new_entry['value']) # Negative since we want balance to go up
     
     def remove_expense(self, expense) -> None:
-        expense_total = self._get_entry_total(expense)
+        expense_total = self._get_entry_total(self.current_expenses, expense)
         del self.current_expenses[expense]
 
         if expense == 'Savings': self.update_current_savings(-expense_total)
         self.save_current_expenses()
         self.update_current_balance(-expense_total) # Negative since we want balance to go up
 
-    def update_current_expenses(self, expense, cost):
-        self.current_expenses[expense] = cost
+    def remove_income(self, income) -> None:
+        income_total = self._get_entry_total(self.current_expenses, income)
+        del self.current_income[income]
+
+        self.save_current_income()
+        self.update_current_balance(income_total) # Positive since we want balance to go down
 
     def load_past_expenses(self, filename) -> Dict:
         data = {}
@@ -273,7 +374,7 @@ class LedgerStore:
     
     def update_expense_entry(self, expense: str, index: int, updated_entry: dict) -> None:
         # Add old total to balance; We'll reduce it with new amount later
-        old_total = self._get_entry_total(expense)
+        old_total = self._get_entry_total(self.current_expenses, expense)
         self.update_current_balance(-old_total)
 
         # Update the entry
@@ -281,7 +382,7 @@ class LedgerStore:
         self.current_expenses[expense]["entries"].sort( key=lambda x: datetime.strptime(x["payment_date"], "%d-%m-%Y") ) # Sort the entry since date could be updated too
 
         # Update the expense with new total
-        new_total = self._get_entry_total(expense)
+        new_total = self._get_entry_total(self.current_expenses, expense)
         self.update_current_balance(new_total)
         self.current_expenses[expense]["value"] = new_total
 
@@ -292,36 +393,69 @@ class LedgerStore:
             self.current_savings = new_total
             self.save_current_savings()
 
-    def is_json_file_empty(self):
-        return os.path.getsize(self.current_month_json) == 0
+    def update_income_entry(self, income: str, index: int, updated_entry: dict) -> None:
+        # Add old total to balance; We'll reduce it with new amount later
+        old_total = self._get_entry_total(self.current_income, income)
+        self.update_current_balance(-old_total)
+
+        # Update the entry
+        self.current_income[income]["entries"][index] = updated_entry
+        self.current_income[income]["entries"].sort( key=lambda x: datetime.strptime(x["payment_date"], "%d-%m-%Y") ) # Sort the entry since date could be updated too
+
+        # Update the income with new total
+        new_total = self._get_entry_total(self.current_income, income)
+        self.update_current_balance(new_total)
+        self.current_income[income]["value"] = new_total
+
+        self.save_current_income()
+
+
+    def is_json_file_empty(self, json_file):
+        return os.path.getsize(json_file) == 0
     
     def get_history_dataset(self):
         entries = []
-        for entry in glob.glob("History/*"): 
+        
+        now = datetime.now()
+
+        # Go back 11 months
+        year = now.year
+        month = now.month - 11
+        while month <= 0:
+            month += 12
+            year -= 1
+            
+        cutoff_date = datetime(year, month, 1)
+
+        for entry in glob.glob("History/*"):
             full_date = entry.split('/')[-1].split('.')[0]
-
             date_obj = datetime.strptime(full_date, "%B %Y")
-            short_date = date_obj.strftime("%b %Y")  # Like Dec 2025
 
-            with open(entry) as file:
-                temp_data = json.load(file)
+            if date_obj >= cutoff_date:
+                with open(entry) as file:
+                    temp_data = json.load(file)
 
-            entries.append({
-                "Date": short_date,
-                "Balance": temp_data["Balance"],
-                "Total": temp_data["Total"],
-                "Savings": temp_data["Savings"]
-            })
+                entries.append({
+                    "date_obj": date_obj,
+                    "Date": date_obj.strftime("%b %Y"),
+                    "Balance": temp_data["Balance"],
+                    "Total": temp_data["Total"],
+                    "Savings": temp_data["Savings"]
+                })
 
-        # Sort by the original datetime objects
-        entries.sort(key=lambda x: datetime.strptime(x["Date"], "%b %Y"))
-                
+        # Sort by date
+        entries.sort(key=lambda x: x["date_obj"])
+
+        # Remove helper key
+        for e in entries:
+            del e["date_obj"]
+
         return entries
     
-    def _get_entry_total(self, expense_name) -> float:
+    def _get_entry_total(self, entry_to_check, expense_name) -> float:
         current_sum = 0
 
-        entries = self.current_expenses[expense_name]["entries"]
+        entries = entry_to_check[expense_name]["entries"]
 
         for entry in entries:
             current_sum += entry["value"]
