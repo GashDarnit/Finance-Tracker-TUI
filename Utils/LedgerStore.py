@@ -41,6 +41,13 @@ class LedgerStore:
     def load_current_expenses(self) -> Dict:
         expenses = {}
 
+        # Check if the file is empty
+        try:
+            with open(self.current_month_json) as file:
+                data = json.load(file)
+        except (json.JSONDecodeError, FileNotFoundError):
+            return {}
+
         with open(self.current_month_json) as file:
             data = json.load(file)
 
@@ -341,7 +348,7 @@ class LedgerStore:
             self.save_current_expenses(is_history=True) # Optional flag that lets us store Balance and Savings
 
             today = datetime.today()
-            last_month = today - relativedelta(months=2) # Get 1 month before
+            last_month = today - relativedelta(months=1) # Get 1 month before
             history_filename = last_month.strftime("%B %Y") + ".json"
 
             try:

@@ -91,7 +91,6 @@ class RightPanel(Vertical):
 
         yield self.content_header
         yield VerticalScroll(id="right-scroll")
-
         
         yield self.total_expense
         yield self.instructions
@@ -104,11 +103,11 @@ class RightPanel(Vertical):
         self.current_title = title
 
         # Remove previous dynamic widget
-        if self.list_view:
+        if self.list_view is not None:
             self.list_view.remove()
             self.list_view = None
 
-        if self.dashboard_view:
+        if self.dashboard_view is not None:
             self.dashboard_view.remove()
             self.dashboard_view = None
 
@@ -461,8 +460,12 @@ class FinanceTracker(Screen):
 
     def on_new_expense_entry_submitted(self, _):
         # Select the first option in the list
-        self.right_panel.list_view.index = 0
-        self.right_panel.list_view.focus()
+        if self.right_panel.list_view and self.right_panel.list_view.children:
+            self.right_panel.list_view.index = 0
+            self.right_panel.list_view.focus()
+
+        # self.right_panel.list_view.index = 0
+        # self.right_panel.list_view.focus()
         
         self.right_panel.update_content('Current Expenses', finance_ledger.get_current_expenses()) # Update content
 

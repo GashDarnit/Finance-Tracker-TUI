@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from textual import color
 from textual.app import ComposeResult
 from textual.screen import Screen
 from textual.containers import Horizontal, Vertical, VerticalScroll
@@ -22,15 +23,15 @@ class DashboardDataRow(Horizontal):
         }
 
         .dashboard-balance {
-            color: #AFAFD7;
+            color: #AF5FFF;
         }
 
         .dashboard-expense {
-            color: red;
+            color: #FF005F;
         }
 
         .dashboard-savings {
-            color: yellow;
+            color: #87D700;
         }
     """
     def __init__(self, date: str, balance: float, expense: float, savings: float):
@@ -74,6 +75,10 @@ class DashboardDataBox(VerticalScroll):
 
 class DashboardScreen(Vertical):
     DEFAULT_CSS = """
+        DashboardScreen {
+            margin-top: 1;
+        }
+
         DashboardDataBox {
             height: 50%;
             margin-top: 1;
@@ -81,7 +86,7 @@ class DashboardScreen(Vertical):
         }
 
         PlotextPlot {
-            padding-left: 2;
+            padding-left: 1;
             padding-right: 2;
         }
     """
@@ -115,8 +120,8 @@ class DashboardScreen(Vertical):
         expenses = [d["Total"] for d in self.history_dataset]
         labels = [d["Date"] for d in self.history_dataset]
 
-        plt.plot(x, balances, label="Balance", marker="braille")
-        plt.plot(x, savings, label="Savings", marker="braille")
-        plt.plot(x, expenses, label="Expense Total", marker="braille")
+        plt.plot(x, balances, label="Balance", marker="braille", color="blue")
+        plt.plot(x, expenses, label="Total", marker="braille", color="red")
+        plt.plot(x, savings, label="Savings", marker="braille", color="green")
 
         plt.xticks(x, labels)
