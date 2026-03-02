@@ -47,6 +47,12 @@ class LedgerStore:
     def load_current_expenses(self) -> Dict:
         expenses = {}
 
+        try:
+            with open(self.current_month_json) as file:
+                data = json.load(file)
+        except (json.JSONDecodeError, FileNotFoundError):
+            return {}
+
         with open(self.current_month_json) as file:
             data = json.load(file)
 
@@ -107,6 +113,12 @@ class LedgerStore:
 
     def load_current_income(self) -> Dict:
         expenses = {}
+
+        try:
+            with open(self.current_income_json) as file:
+                data = json.load(file)
+        except (json.JSONDecodeError, FileNotFoundError):
+            return {}
 
         with open(self.current_income_json) as file:
             data = json.load(file)
@@ -178,7 +190,7 @@ class LedgerStore:
             # Create a new dict in the original format
             data_to_save = {
                 service: info["entries"] if isinstance(info, dict) else info
-                for service, info in self.current_expenses.items()
+                for service, info in self.current_income.items()
             }
             with open(self.current_income_json, "w") as file:
                 json.dump(data_to_save, file, indent=4)
@@ -259,7 +271,7 @@ class LedgerStore:
         self.save_current_expenses()
         self.update_current_balance(amount)
 
-    def add_new_income(self, expense) -> None:
+    def add_new_income(self, income) -> None:
         '''
         "Name": name,
         "Description": description,
@@ -267,7 +279,7 @@ class LedgerStore:
         "Amount": float(amount),
 
         '''
-        name, description, date, amount = [item[1] for item in expense.items()]
+        name, description, date, amount = [item[1] for item in income.items()]
         
 
         new_entry = {
@@ -289,8 +301,6 @@ class LedgerStore:
             self.current_income[name] = {}
             self.current_income[name]['entries'] = [new_entry]
             self.current_income[name]['value'] = amount
-
-        if name == "Savings": self.update_current_savings(new_entry['value'])
 
         self.save_current_income()
         self.update_current_balance(-amount) # Negative here since we want balance to go up
@@ -326,7 +336,7 @@ class LedgerStore:
         self.current_income[title]['entries'].sort( key=lambda x: datetime.strptime(x["payment_date"], "%d-%m-%Y") )
 
         # Running sum; Should be more accurate this way
-        self.current_income[title]['value'] = sum( entry['value'] for entry in self.current_expenses[title]['entries'] )
+        self.current_income[title]['value'] = sum( entry['value'] for entry in self.current_income[title]['entries'] )
 
         self.save_current_income()
         self.update_current_balance(-new_entry['value']) # Negative since we want balance to go up
@@ -340,7 +350,7 @@ class LedgerStore:
         self.update_current_balance(-expense_total) # Negative since we want balance to go up
 
     def remove_income(self, income) -> None:
-        income_total = self._get_entry_total(self.current_expenses, income)
+        income_total = self._get_entry_total(self.current_income, income)
         del self.current_income[income]
 
         self.save_current_income()

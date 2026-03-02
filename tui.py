@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, HorizontalScroll, Vertical, VerticalScroll
 from textual.screen import Screen
@@ -6,7 +8,7 @@ from textual.widgets import Footer, Header, ListView, ListItem, Static
 from Utils.LedgerStore import LedgerStore
 from Utils.LeftPanes import HeaderBox, OptionsList, BalanceBox, SavingsBox
 from Utils.CustomWidgets import ExpenseRow
-from Utils.Modals import DepositBalanceModal, NewExpenseModal, ExpenseListModal, ConfirmDeleteModal
+from Utils.Modals import DepositBalanceModal, NewExpenseModal, ExpenseListModal, IncomeListModal, ConfirmDeleteModal
 from Utils.DashboardUtils import DashboardScreen
 
 
@@ -268,17 +270,18 @@ class FinanceTracker(Screen):
 
     def action_deposit_balance(self):
         # Must be showing Current Expenses
-        if self.right_panel.current_title != "Current Expenses":  
-            return
-
-        self.open_deposit_balance_dialog()
+        if self.right_panel.current_title == "Current Expenses" or self.right_panel.current_title == "Income":
+            self.open_deposit_balance_dialog()
 
     def action_new_expense(self):
         # Must be showing Current Expenses
-        if self.right_panel.current_title != "Current Expenses": 
-            return
+        # if self.right_panel.current_title != "Current Expenses" or self.right_panel.current_title != "Income": 
+        #     return
 
-        self.open_new_expense_dialog()
+        if self.right_panel.current_title == "Current Expenses":
+            self.open_new_expense_dialog()
+        elif self.right_panel.current_title == "Income":
+            self.open_new_income_dialog()
 
     def action_delete_expense(self):
         focused = self.focused
@@ -286,24 +289,28 @@ class FinanceTracker(Screen):
         if focused is not self.right_panel.list_view:
             return
 
-        if self.right_panel.current_title != "Current Expenses":
-            return
+        if self.right_panel.current_title == "Current Expenses" or self.right_panel.current_title == "Income":
+            selected_index = focused.index
+            if selected_index is None:
+                return
 
-        selected_index = focused.index
-        if selected_index is None:
-            return
+            selected_item = focused.children[selected_index]
+            static_widgets = selected_item.query(Static)
+            if not static_widgets:
+                return
 
-        selected_item = focused.children[selected_index]
-        static_widgets = selected_item.query(Static)
-        if not static_widgets:
-            return
-
-        expense_name = static_widgets[0].render()
-
-        self.app.push_screen(
-            ConfirmDeleteModal(expense_name),
-            lambda confirmed: self.on_delete_expense_submitted(confirmed, expense_name)
-        )
+            item_name = static_widgets[0].render()
+            
+            if self.right_panel.current_title == 'Current Expenses':
+                self.app.push_screen(
+                    ConfirmDeleteModal(item_name),
+                    lambda confirmed: self.on_delete_expense_submitted(confirmed, item_name)
+                )
+            elif self.right_panel.current_title == 'Income':
+                self.app.push_screen(
+                    ConfirmDeleteModal(item_name),
+                    lambda confirmed: self.on_delete_income_submitted(confirmed, item_name)
+                )
 
     def action_go_back(self):
         if self.right_panel.view_mode != "history_snapshot":
@@ -319,19 +326,42 @@ class FinanceTracker(Screen):
         self.right_panel.list_view.focus()
 
     def open_deposit_balance_dialog(self):
-        self.app.push_screen(DepositBalanceModal(), self.on_balace_deposited)
+        self.app.push_screen(DepositBalanceModal(), self.on_balance_deposited)
 
     def open_new_expense_dialog(self):
         self.app.push_screen(NewExpenseModal(), self.on_new_expense_submitted)
 
-    def on_balace_deposited(self, result):
+    def open_new_income_dialog(self):
+        self.app.push_screen(NewExpenseModal(), self.on_new_income_submitted)
+
+    def on_balance_deposited(self, result):
         if result is None: 
             return
-        
+
+        if "Deposit" in finance_ledger.get_current_income().keys():
+            new_entry = {
+                'description': "Bank Deposit",
+                'payment_date': datetime.now().strftime("%d-%m-%Y"),
+                'value': result["Amount"]
+            }
+            finance_ledger.add_new_income_entry("Deposit", new_entry)
+        else:
+            new_entry = {
+                'name': "Deposit",
+                'description': "Bank Deposit",
+                'payment_date': datetime.now().strftime("%d-%m-%Y"),
+                'value': result["Amount"]
+            }
+            finance_ledger.add_new_income(new_entry)
+
+        # Depositing will only add an entry to Income, so we don't need to add an update for Expensses
+        if self.right_panel.view_mode == 'income':
+            self.right_panel.update_content('Income', finance_ledger.get_current_income())
+
         self.right_panel.list_view.index = 0
         self.right_panel.list_view.focus()
         
-        finance_ledger.update_current_balance(-result['Amount'])
+        # finance_ledger.update_current_balance(-result['Amount'])
         self.balance.update_balance(finance_ledger.get_current_balance()) # Update Balance display
 
     def on_new_expense_submitted(self, result):
@@ -348,6 +378,19 @@ class FinanceTracker(Screen):
         self.balance.update_balance(finance_ledger.get_current_balance())
         self.savings.update_savings(finance_ledger.get_current_savings())
 
+    def on_new_income_submitted(self, result):
+        if result is None: 
+            return
+        
+        finance_ledger.add_new_income(result) # Add new entry to ledger
+        self.right_panel.update_content('Income', finance_ledger.get_current_income()) # Update content
+
+        self.right_panel.list_view.index = 0
+        self.right_panel.list_view.focus()
+
+        # Update Balance display
+        self.balance.update_balance(finance_ledger.get_current_balance())
+
     def on_delete_expense_submitted(self, confirmed, expense_name):
         if not confirmed: 
             return
@@ -361,6 +404,22 @@ class FinanceTracker(Screen):
         # Update Balance and Savings display
         self.balance.update_balance(finance_ledger.get_current_balance())
         self.savings.update_savings(finance_ledger.get_current_savings())
+
+    def on_delete_income_submitted(self, confirmed, income_name):
+        if not confirmed: 
+            return
+        
+        finance_ledger.remove_income(income_name) # Remove the entry from the ledger
+        self.right_panel.update_content('Income', finance_ledger.get_current_income()) # Update content
+
+        if len(finance_ledger.get_current_income()) > 0:
+            self.right_panel.list_view.index = 0
+            self.right_panel.list_view.focus()
+        else:
+            self.options_list.focus()
+
+        # Update Balance and Savings display
+        self.balance.update_balance(finance_ledger.get_current_balance())
 
 
     def compose(self) -> ComposeResult:
@@ -465,6 +524,25 @@ class FinanceTracker(Screen):
                     self.on_new_expense_entry_submitted
                 )
 
+            elif self.right_panel.current_title == "Income":
+                if not self.right_panel.list_view: return
+                
+                # Get selected item
+                selected_index = self.right_panel.list_view.index
+                if selected_index is None:
+                    return
+
+                selected_item = self.right_panel.list_view.children[selected_index]
+                static_widgets = selected_item.query(Static)
+                current_income = static_widgets[0].render()
+                income_entries = finance_ledger.get_current_income()[current_income]['entries']
+
+                # Push the modal
+                self.app.push_screen( 
+                    IncomeListModal(title=current_income, income=income_entries, ledger=finance_ledger), 
+                    self.on_new_income_entry_submitted
+                )
+
             elif self.right_panel.current_title == "Expenses History":
                 if not self.right_panel.list_view: return
 
@@ -497,6 +575,17 @@ class FinanceTracker(Screen):
         # Update Balance and Savings display
         self.balance.update_balance(finance_ledger.get_current_balance())
         self.savings.update_savings(finance_ledger.get_current_savings())
+
+    def on_new_income_entry_submitted(self, _):
+        self.right_panel.update_content('Income', finance_ledger.get_current_income()) # Update content
+
+        # Select the first option in the list
+        if self.right_panel.list_view and self.right_panel.list_view.children:
+            self.right_panel.list_view.index = 0
+            self.right_panel.list_view.focus()
+
+        # Update Balance and Savings display
+        self.balance.update_balance(finance_ledger.get_current_balance())
 
 
 class FinanceTrackerApp(App):
