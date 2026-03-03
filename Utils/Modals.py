@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from textual.screen import ModalScreen
 from textual.widgets import Input, Label, ListItem, ListView, Static
 from textual.containers import Container, Horizontal, Vertical, VerticalScroll
@@ -44,12 +46,23 @@ class NewExpenseModal(ModalScreen):
         ("escape", "dismiss", "Cancel"),
     ]
 
+    def __init__(self, is_income=False):
+        super().__init__()
+        self.is_income = is_income
+
     def compose(self):
         with Container():  # full-screen container
             with Vertical(id="dialog"):
-                yield Label("New Expense", id="dialog-title")
+                if not self.is_income:
+                    yield Label("New Expense", id="dialog-title")
+                else:
+                    yield Label("New Income", id="dialog-title")
 
-                self.expense_name = Input(placeholder="Expense name", id="expense-name")
+                if not self.is_income:
+                    self.expense_name = Input(placeholder="Expense name", id="expense-name")
+                else: 
+                    self.expense_name = Input(placeholder="Income name", id="expense-name")
+                
                 self.date = Input(placeholder="Date (DD-MM-YYYY)", id="expense-date")
                 self.description = self.amount = Input(placeholder="Description", id="expense-desc")
                 self.amount = Input(placeholder="Amount", type="number", id="expense-amount")
@@ -63,6 +76,7 @@ class NewExpenseModal(ModalScreen):
 
     def on_mount(self):
         self.expense_name.focus()
+        self.date.value = datetime.now().strftime("%d-%m-%Y")
 
     def on_input_submitted(self, event: Input.Submitted):
         if event.input is self.amount:

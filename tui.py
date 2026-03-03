@@ -274,10 +274,6 @@ class FinanceTracker(Screen):
             self.open_deposit_balance_dialog()
 
     def action_new_expense(self):
-        # Must be showing Current Expenses
-        # if self.right_panel.current_title != "Current Expenses" or self.right_panel.current_title != "Income": 
-        #     return
-
         if self.right_panel.current_title == "Current Expenses":
             self.open_new_expense_dialog()
         elif self.right_panel.current_title == "Income":
@@ -332,7 +328,7 @@ class FinanceTracker(Screen):
         self.app.push_screen(NewExpenseModal(), self.on_new_expense_submitted)
 
     def open_new_income_dialog(self):
-        self.app.push_screen(NewExpenseModal(), self.on_new_income_submitted)
+        self.app.push_screen(NewExpenseModal(is_income=True), self.on_new_income_submitted)
 
     def on_balance_deposited(self, result):
         if result is None: 
@@ -388,8 +384,9 @@ class FinanceTracker(Screen):
         self.right_panel.list_view.index = 0
         self.right_panel.list_view.focus()
 
-        # Update Balance display
+        # Update Balance and Savings display
         self.balance.update_balance(finance_ledger.get_current_balance())
+        self.savings.update_savings(finance_ledger.get_current_savings())
 
     def on_delete_expense_submitted(self, confirmed, expense_name):
         if not confirmed: 
@@ -420,6 +417,7 @@ class FinanceTracker(Screen):
 
         # Update Balance and Savings display
         self.balance.update_balance(finance_ledger.get_current_balance())
+        self.savings.update_savings(finance_ledger.get_current_savings())
 
 
     def compose(self) -> ComposeResult:

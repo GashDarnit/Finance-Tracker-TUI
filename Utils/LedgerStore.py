@@ -302,6 +302,9 @@ class LedgerStore:
             self.current_income[name]['entries'] = [new_entry]
             self.current_income[name]['value'] = amount
 
+        # If income goes up, and it has something to do with savings, then it's most likely a savings withdrawal
+        if "Savings" in name: self.update_current_savings(-amount)
+
         self.save_current_income()
         self.update_current_balance(-amount) # Negative here since we want balance to go up
 
@@ -352,6 +355,9 @@ class LedgerStore:
     def remove_income(self, income) -> None:
         income_total = self._get_entry_total(self.current_income, income)
         del self.current_income[income]
+
+        if "Savings" in income:
+            self.update_current_savings(-income_total)
 
         self.save_current_income()
         self.update_current_balance(income_total) # Positive since we want balance to go down
