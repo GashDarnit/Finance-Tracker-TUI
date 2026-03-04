@@ -493,10 +493,14 @@ class FinanceTracker(Screen):
 
             option_text = static_widgets[0].render()
 
-            if self.right_panel.list_view and self.right_panel.list_view.children and option_text != 'Dashboard':
+            if self.right_panel.list_view and self.right_panel.list_view.children:
                 # Focus on the first item in the right panel
                 self.right_panel.list_view.index = 0
                 self.right_panel.list_view.focus()
+
+            if option_text == 'Dashboard':
+                self.right_panel.dashboard_view.overview_table.list_view.index = 0
+                self.right_panel.dashboard_view.overview_table.list_view.focus()
 
             return
 

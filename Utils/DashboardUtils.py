@@ -107,8 +107,11 @@ class DashboardScreen(Vertical):
         })
 
     def compose(self) -> ComposeResult:
-        yield PlotextPlot(id="balance_plot")
-        yield DashboardDataBox(self.history_dataset)
+        self.balance_plot = PlotextPlot(id="balance_plot")
+        self.overview_table = DashboardDataBox(self.history_dataset)
+
+        yield self.balance_plot
+        yield self.overview_table
 
     def on_mount(self) -> None:
         plot_widget = self.query_one("#balance_plot")
