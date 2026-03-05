@@ -188,11 +188,6 @@ class RightPanel(Vertical):
 
             self.query_one("#right-scroll").mount(self.dashboard_view)
 
-        else:
-            pass
-            # self.instructions.display = False
-            # self.total_expense.display = False
-            # for item in items: self.list_view.append(ListItem(Static(item)))
 
     def show_history_snapshot(self, filename, snapshot_data, view_mode):
         """Display selected history snapshot in read-only mode."""
@@ -261,8 +256,13 @@ class FinanceTracker(Screen):
     def action_focus_right(self):
         """Move focus to right panel list, if there are items."""
         if self.right_panel.list_view and self.right_panel.list_view.children:
-            self.right_panel.list_view.index = 0
-            self.right_panel.list_view.focus()
+            if self.right_panel.list_view:
+                self.right_panel.list_view.index = 0
+                self.right_panel.list_view.focus()
+
+        elif self.right_panel.dashboard_view:
+            self.right_panel.dashboard_view.overview_table.list_view.index = 0
+            self.right_panel.dashboard_view.overview_table.list_view.focus()
 
     def action_move_down(self):
         focused = self.focused
@@ -490,8 +490,6 @@ class FinanceTracker(Screen):
         elif option_text == 'Income History':
             items = finance_ledger.get_expenses_history()
         elif option_text == 'Dashboard':
-            # Temporarily display this for now
-            # items = [str(i) for i in finance_ledger.get_history_dataset()]
             items = finance_ledger.get_history_dataset()
         
         self.right_panel.update_content(option_text, items)
@@ -591,10 +589,6 @@ class FinanceTracker(Screen):
                 history_data = finance_ledger.load_income_history(str(filename) + ".json")
                 self.right_panel.show_history_snapshot(filename, history_data, "income_history")
                 return
-
-            elif self.right_panel.current_title == "Dashboard":
-                # Wanna make it select the bottom panel 
-                pass
 
             else: return
 

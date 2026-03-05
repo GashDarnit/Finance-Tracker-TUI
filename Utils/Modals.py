@@ -395,6 +395,10 @@ class ExpenseListModal(ModalScreen):
         ("n", "new_expense", "New Expense"),
         ("Enter", "edit_expense", "Edit Selected"),
         ("x", "delete_expense", "Delete Selected"),
+
+        # Vim-style keybinds
+        ("j", "move_down", "Move selection down"),
+        ("k", "move_up", "Move selection up")
     ]
 
     def __init__(self, title: str, expenses: list, ledger: LedgerStore):
@@ -459,6 +463,34 @@ class ExpenseListModal(ModalScreen):
             ConfirmDeleteModal(display_name),
             lambda confirmed: self.on_delete_confirmed(confirmed, selected_index)
         )
+
+    def action_move_down(self):
+        """Triggered when user presses 'j'."""
+
+        if not self.list_view.children:
+            return
+
+        selected_index = self.list_view.index
+
+        if selected_index is None or selected_index >= len(self.ledger.current_expenses[self.title]["entries"]):
+            return
+
+        self.list_view.index = selected_index + 1
+        self.list_view.focus()
+
+    def action_move_up(self):
+        """Triggered when user presses 'k'."""
+
+        if not self.list_view.children:
+            return
+
+        selected_index = self.list_view.index
+
+        if selected_index is None or selected_index == 0:
+            return
+
+        self.list_view.index = selected_index - 1
+        self.list_view.focus()
 
     def on_expense_edited(self, result, index):
         """Callback when EditExpenseModal is submitted."""
@@ -643,6 +675,10 @@ class IncomeListModal(ModalScreen):
         ("n", "new_income", "New Income"),
         ("Enter", "edit_income", "Edit Selected"),
         ("x", "delete_income", "Delete Selected"),
+
+        # Vim-style keybinds
+        ("j", "move_down", "Move selection down"),
+        ("k", "move_up", "Move selection up")
     ]
 
     def __init__(self, title: str, income: list, ledger: LedgerStore):
@@ -708,8 +744,37 @@ class IncomeListModal(ModalScreen):
             lambda confirmed: self.on_delete_confirmed(confirmed, selected_index)
         )
 
+    def action_move_down(self):
+        """Triggered when user presses 'j'."""
+
+        if not self.list_view.children:
+            return
+
+        selected_index = self.list_view.index
+
+        if selected_index is None or selected_index >= len(self.ledger.current_income[self.title]["entries"]):
+            return
+
+        self.list_view.index = selected_index + 1
+        self.list_view.focus()
+
+    def action_move_up(self):
+        """Triggered when user presses 'k'."""
+
+        if not self.list_view.children:
+            return
+
+        selected_index = self.list_view.index
+
+        if selected_index is None or selected_index == 0:
+            return
+
+        self.list_view.index = selected_index - 1
+        self.list_view.focus()
+
+
     def on_income_edited(self, result, index):
-        """Callback when EditExpenseModal is submitted."""
+        """Callback when EditIncomeModal is submitted."""
         if result is None:
             return
 
