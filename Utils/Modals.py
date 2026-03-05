@@ -224,7 +224,6 @@ class NewEntryModal(ModalScreen):
                 self.description = self.amount = Input(placeholder="Description", id="expense-desc")
                 self.amount = Input(placeholder="Amount", type="number", id="expense-amount")
 
-
                 yield self.date
                 yield self.description
                 yield self.amount
@@ -232,6 +231,7 @@ class NewEntryModal(ModalScreen):
 
     def on_mount(self):
         self.date.focus()
+        self.date.value = datetime.now().strftime("%d-%m-%Y")
 
     def on_input_submitted(self, event: Input.Submitted):
         if event.input is self.amount:

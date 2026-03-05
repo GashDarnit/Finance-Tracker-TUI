@@ -23,28 +23,35 @@ class DashboardDataRow(Horizontal):
         }
 
         .dashboard-balance {
-            color: #AF5FFF;
+            color: #FFFF00;
         }
 
         .dashboard-expense {
             color: #FF005F;
         }
 
-        .dashboard-savings {
+        .dashboard-income {
             color: #87D700;
         }
+
+        .dashboard-savings {
+            color: #AF5FFF;
+        }
     """
-    def __init__(self, date: str, balance: float, expense: float, savings: float):
+
+    def __init__(self, date: str, balance: float, expense: float, income: float, savings: float):
         super().__init__()
         self.date = date
         self.balance = balance
         self.expense = expense
         self.savings = savings
+        self.income = income
 
     def compose(self) -> ComposeResult:
         yield Static(self.date, classes="dashboard-date")
         yield Static(f"RM {self.balance:,.2f}", classes="dashboard-balance")
         yield Static(f"RM {self.expense:,.2f}", classes="dashboard-expense")
+        yield Static(f"RM {self.income:,.2f}", classes="dashboard-income")
         yield Static(f"RM {self.savings:,.2f}", classes="dashboard-savings")
 
 
@@ -71,7 +78,7 @@ class DashboardDataBox(VerticalScroll):
 
     def on_mount(self) -> None:
         for data in self.history_dataset:
-            self.list_view.append(ListItem(DashboardDataRow(data['Date'], data['Balance'], data['Total'], data['Savings'])))
+            self.list_view.append(ListItem(DashboardDataRow(data['Date'], data['Balance'], data['Total Expenses'], data['Total Income'], data['Savings'])))
 
 class DashboardScreen(Vertical):
     DEFAULT_CSS = """
@@ -91,18 +98,20 @@ class DashboardScreen(Vertical):
         }
     """
 
-    def __init__(self, balance: float, expense: float, savings: float, history_dataset: list) -> None:
+    def __init__(self, balance: float, expense: float, savings: float, income: float, history_dataset: list) -> None:
         super().__init__()
         self.current_balance = balance
         self.current_expense = expense
         self.current_savings = savings
+        self.current_income = income
         self.history_dataset = history_dataset
 
         # Add in current month info
         self.history_dataset.append({
             "Date": datetime.now().strftime("%b %Y"), # Current date in Month Year format, e.g., Feb 2026
             "Balance": self.current_balance,
-            "Total": self.current_expense,
+            "Total Expenses": self.current_expense,
+            "Total Income": self.current_income,
             "Savings": self.current_savings
         })
 
@@ -120,12 +129,14 @@ class DashboardScreen(Vertical):
         x = list(range(len(self.history_dataset)))
         balances = [d["Balance"] for d in self.history_dataset]
         savings = [d["Savings"] for d in self.history_dataset]
-        expenses = [d["Total"] for d in self.history_dataset]
+        expenses = [d["Total Expenses"] for d in self.history_dataset]
+        income = [d["Total Income"] for d in self.history_dataset]
         labels = [d["Date"] for d in self.history_dataset]
 
-        plt.plot(x, balances, label="Balance", marker="braille", color="blue")
+        plt.plot(x, balances, label="Balance", marker="braille", color=(255, 255, 0))
         plt.plot(x, expenses, label="Expenses", marker="braille", color="red")
-        plt.plot(x, savings, label="Savings", marker="braille", color="green")
+        plt.plot(x, income, label="Income", marker="braille", color="green")
+        plt.plot(x, savings, label="Savings", marker="braille", color="blue")
 
         plt.xticks(x, labels)
         plt.title("Financial Overview")

@@ -166,11 +166,13 @@ class RightPanel(Vertical):
             self.total_expense.display = False
             self.instructions.display = False
 
+            # def __init__(self, balance: float, expense: float, savings: float, income: float, history_dataset: list) -> None:
             self.dashboard_view = DashboardScreen(
-                finance_ledger.get_current_balance(),
-                finance_ledger.get_total_expenses(), 
-                finance_ledger.get_current_savings(),
-                items
+                balance=finance_ledger.get_current_balance(),
+                expense=finance_ledger.get_total_expenses(), 
+                savings=finance_ledger.get_current_savings(),
+                income=finance_ledger.get_total_income(),
+                history_dataset=items
             )
 
             self.query_one("#right-scroll").mount(self.dashboard_view)

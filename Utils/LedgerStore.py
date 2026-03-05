@@ -168,10 +168,18 @@ class LedgerStore:
 
             if is_history:
                 temp = data_to_save
-                total = self.get_total_expenses()
+                income = {
+                    service: info["entries"] if isinstance(info, dict) else info
+                    for service, info in self.current_income.items()
+                }
+
+                total_expenses = self.get_total_expenses()
+                total_income = self.get_total_income()
                 data_to_save = {
                     'Expense': temp,
-                    'Total': total,
+                    'Income': income,
+                    'Total Expenses': total_expenses,
+                    'Total Income': total_income,
                     'Balance': self.current_balance,
                     'Savings': self.current_savings
                 }
@@ -455,7 +463,8 @@ class LedgerStore:
                     "date_obj": date_obj,
                     "Date": date_obj.strftime("%b %Y"),
                     "Balance": temp_data["Balance"],
-                    "Total": temp_data["Total"],
+                    "Total Expenses": temp_data["Total Expenses"],
+                    "Total Income": temp_data["Total Income"],
                     "Savings": temp_data["Savings"]
                 })
 
@@ -498,13 +507,14 @@ class LedgerStore:
             self.save_current_expenses(is_history=True) # Optional flag that lets us store Balance and Savings
 
             today = datetime.today()
-            last_month = today - relativedelta(months=1) # Get 1 month before
+            last_month = today - relativedelta(months=3) # Get 1 month before
             history_filename = last_month.strftime("%B %Y") + ".json"
 
             try:
                 os.rename(self.current_month_json, history_filename) # Rename old 'current_expenses.json' to '{Month} {Year}.json'
                 shutil.move(history_filename, os.path.join(self.HISTORY_PATH, history_filename)) # Move the file to history folder
                 self.current_expenses = {} # Reset current expenses
+                self.current_income = {}
                 self.save_current_expenses() # Save the empty dict
 
             except Exception as e:
