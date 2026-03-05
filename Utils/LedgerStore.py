@@ -91,6 +91,27 @@ class LedgerStore:
 
         return expenses
     
+    def load_income_history(self, filename: str) -> Dict:
+        history_filename = os.path.join(self.HISTORY_PATH, filename)
+        expenses = {}
+
+        with open(history_filename) as file:
+            data = json.load(file)['Income']
+
+            for expense, instances in data.items():
+
+                # Sort entries by date
+                instances.sort( key=lambda x: datetime.strptime(x["payment_date"], "%d-%m-%Y") )
+
+                cur_sum = sum(entry["value"] for entry in instances)
+
+                expenses[expense] = {
+                    "entries": instances,
+                    "value": cur_sum,
+                }
+
+        return expenses
+    
     def load_current_balance(self) -> float:
         try:
             with open(self.current_balance_json) as file:
@@ -228,7 +249,7 @@ class LedgerStore:
             entries.append(entry.split('/')[-1].split('.')[0].replace('_', ' ')) # This looks so chaotic lmao
         
         return entries
-    
+
     def get_total_expenses(self) -> float:
         total = 0
         for _, content in self.current_expenses.items(): 
@@ -382,6 +403,18 @@ class LedgerStore:
 
         return data
 
+    def load_past_income(self, filename) -> Dict:
+        data = {}
+        filename += ".json"
+        try:
+            with open(os.path.join("History", filename)) as file:
+                data = json.load(file)
+
+        except Exception as e:
+            print(f"Failed to load {filename}: {e}")
+
+        return data
+
     def update_current_balance(self, expense_cost) -> float:
         # Should work for both positive and negative values
         self.current_balance -= expense_cost
@@ -507,7 +540,7 @@ class LedgerStore:
             self.save_current_expenses(is_history=True) # Optional flag that lets us store Balance and Savings
 
             today = datetime.today()
-            last_month = today - relativedelta(months=3) # Get 1 month before
+            last_month = today - relativedelta(months=1) # Get 1 month before
             history_filename = last_month.strftime("%B %Y") + ".json"
 
             try:

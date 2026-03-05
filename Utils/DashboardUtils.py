@@ -50,8 +50,8 @@ class DashboardDataRow(Horizontal):
     def compose(self) -> ComposeResult:
         yield Static(self.date, classes="dashboard-date")
         yield Static(f"RM {self.balance:,.2f}", classes="dashboard-balance")
-        yield Static(f"RM {self.expense:,.2f}", classes="dashboard-expense")
         yield Static(f"RM {self.income:,.2f}", classes="dashboard-income")
+        yield Static(f"RM {self.expense:,.2f}", classes="dashboard-expense")
         yield Static(f"RM {self.savings:,.2f}", classes="dashboard-savings")
 
 
@@ -134,8 +134,8 @@ class DashboardScreen(Vertical):
         labels = [d["Date"] for d in self.history_dataset]
 
         plt.plot(x, balances, label="Balance", marker="braille", color=(255, 255, 0))
-        plt.plot(x, expenses, label="Expenses", marker="braille", color="red")
         plt.plot(x, income, label="Income", marker="braille", color="green")
+        plt.plot(x, expenses, label="Expenses", marker="braille", color="red")
         plt.plot(x, savings, label="Savings", marker="braille", color="blue")
 
         plt.xticks(x, labels)

@@ -39,7 +39,7 @@ class OptionsList(ListView):
     """
 
     def __init__(self):
-        options = [ListItem(Static(f"Current Expenses")), ListItem(Static(f"Income")), ListItem(Static(f"Expenses History")), ListItem(Static(f"Dashboard"))]
+        options = [ListItem(Static(f"Current Expenses")), ListItem(Static(f"Income")), ListItem(Static(f"Expenses History")), ListItem(Static(f"Income History")), ListItem(Static(f"Dashboard"))]
         super().__init__(*options)
         self.border_title = "Options"
         self.border_title_align = "center"

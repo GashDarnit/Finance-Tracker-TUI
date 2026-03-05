@@ -131,7 +131,7 @@ class RightPanel(Vertical):
             self.query_one("#instructions-footer", Static).update("[D] Deposit Balance\t[N] New Expense\t\t[X] Delete Expense\t[Enter] Select Expense")
             self.query_one("#expense-total", Static).update(f"Total:\tRM {finance_ledger.get_total_expenses():.2f}")
 
-        if title == 'Income':
+        elif title == 'Income':
             self.content_header.display = True
             self.instructions.display = True
             self.total_expense.display = True
@@ -153,7 +153,19 @@ class RightPanel(Vertical):
             self.total_expense.display = False
             self.instructions.display = False
 
-            self.view_mode = "history"
+            self.view_mode = "expenses_history"
+            self.list_view = ListView()
+            self.query_one("#right-scroll").mount(self.list_view)
+
+            for filename in items:
+                self.list_view.append(ListItem(Static(filename)))
+
+        elif title == 'Income History':
+            self.content_header.display = True
+            self.total_expense.display = False
+            self.instructions.display = False
+
+            self.view_mode = "income_history"
             self.list_view = ListView()
             self.query_one("#right-scroll").mount(self.list_view)
 
@@ -166,7 +178,6 @@ class RightPanel(Vertical):
             self.total_expense.display = False
             self.instructions.display = False
 
-            # def __init__(self, balance: float, expense: float, savings: float, income: float, history_dataset: list) -> None:
             self.dashboard_view = DashboardScreen(
                 balance=finance_ledger.get_current_balance(),
                 expense=finance_ledger.get_total_expenses(), 
@@ -183,11 +194,11 @@ class RightPanel(Vertical):
             # self.total_expense.display = False
             # for item in items: self.list_view.append(ListItem(Static(item)))
 
-    def show_history_snapshot(self, filename, snapshot_data):
+    def show_history_snapshot(self, filename, snapshot_data, view_mode):
         """Display selected history snapshot in read-only mode."""
 
         self.current_title = filename
-        self.view_mode = "history_snapshot"
+        self.view_mode = view_mode
 
         # Update title
         right_content = self.query_one("#right-content", Static)
@@ -311,17 +322,19 @@ class FinanceTracker(Screen):
                 )
 
     def action_go_back(self):
-        if self.right_panel.view_mode != "history_snapshot":
-            return
+        if self.right_panel.view_mode == "expenses_history" or self.right_panel.view_mode == "income_history":
+            focused = self.focused
 
-        focused = self.focused
+            if focused is not self.right_panel.list_view:
+                return
 
-        if focused is not self.right_panel.list_view:
-            return
+            if self.right_panel.view_mode == "expenses_history":
+                self.right_panel.update_content( "Expenses History", finance_ledger.get_expenses_history() )
+            else:
+                self.right_panel.update_content( "Income History", finance_ledger.get_expenses_history() )
 
-        self.right_panel.update_content( "Expenses History", finance_ledger.get_expenses_history() )
-        self.right_panel.list_view.index = 0
-        self.right_panel.list_view.focus()
+            self.right_panel.list_view.index = 0
+            self.right_panel.list_view.focus()
 
     def open_deposit_balance_dialog(self):
         self.app.push_screen(DepositBalanceModal(), self.on_balance_deposited)
@@ -474,6 +487,8 @@ class FinanceTracker(Screen):
             items = finance_ledger.get_current_income()
         elif option_text == 'Expenses History':
             items = finance_ledger.get_expenses_history()
+        elif option_text == 'Income History':
+            items = finance_ledger.get_expenses_history()
         elif option_text == 'Dashboard':
             # Temporarily display this for now
             # items = [str(i) for i in finance_ledger.get_history_dataset()]
@@ -559,7 +574,22 @@ class FinanceTracker(Screen):
                 filename = static_widgets[0].render()
 
                 history_data = finance_ledger.load_expense_history(str(filename) + ".json")
-                self.right_panel.show_history_snapshot(filename, history_data)
+                self.right_panel.show_history_snapshot(filename, history_data, "expenses_history")
+                return
+            
+            elif self.right_panel.current_title == "Income History":
+                if not self.right_panel.list_view: return
+
+                selected_index = self.right_panel.list_view.index
+                if selected_index is None:
+                    return
+
+                selected_item = self.right_panel.list_view.children[selected_index]
+                static_widgets = selected_item.query(Static)
+                filename = static_widgets[0].render()
+
+                history_data = finance_ledger.load_income_history(str(filename) + ".json")
+                self.right_panel.show_history_snapshot(filename, history_data, "income_history")
                 return
 
             elif self.right_panel.current_title == "Dashboard":
